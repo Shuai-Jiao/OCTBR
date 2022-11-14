@@ -12,26 +12,7 @@ import math
 import itertools
 from pm4py.visualization.footprints import visualizer as fp_visualizer
 from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
-import datetime
-import pandas as pd
 
-
-def ParsingCSV(csvpath, parameters=None):
-    csvlog = pd.read_csv(csvpath,sep=';')
-    for ot in parameters['object_type']:
-        csvlog[ot] = csvlog[ot].map(lambda x: str([y.strip() for y in x.split(',')]) if isinstance(x,str) else str([]))
-        
-    csvlog["event_id"] = list(range(0,len(csvlog)))
-    csvlog.index = list(range(0,len(csvlog)))
-    csvlog["event_id"] = csvlog["event_id"].astype(float).astype(int)
-    csvlog = csvlog.rename(columns={"event_id": 'ocel:eid', parameters['time_name']:'ocel:timestamp',\
-    parameters['act_name']:'ocel:activity'})
-    for ot in parameters['object_type']:
-        csvlog = csvlog.rename(columns={ot:str('ocel:type:'+ot)})
-    '''Warnining: the previous timestamp should be determined whether an integer is'''
-    csvlog['ocel:timestamp'] = [str(datetime.datetime.fromtimestamp(x))\
-                                for x in csvlog['ocel:timestamp']]
-    return csvlog
 
 def OCEL2OCFM(ocel):
     otlist = pm4py.ocel_get_object_types(ocel)
@@ -179,27 +160,14 @@ def EvalbyOCFM(ocel,parameters=None):
         raise ValueError("Parameter configuration is not done so far")
 
 
-def Evaluation(ocel):
+if __name__ == "__main__":
+    path = './OCEL/running-example.jsonocel'
+    ocel = pm4py.read_ocel(path)
     ocpn = pm4py.discover_oc_petri_net(ocel)
     ocpnlist = decomposeOCPN(ocpn)
     ocfmmodel = OCPN2OCFM(ocpnlist)
     ocfmlog = OCEL2OCFM(ocel)
     result = EvalOCFM(ocfmlog,ocfmmodel)
-    return result
-
-if __name__ == "__main__":
-    path1 = './OCEL/running-example.jsonocel'
-    ocel1 = pm4py.read_ocel(path1)
-    path2 = './OCEL/example.csv'
-
-    parameter1 = {'time_name':'event_timestamp','act_name':'event_activity','object_type':['order','item','delivery']}
-    ParsingCSV(path2,parameter1).to_csv('./OCEL/ocelexample.csv')
-    ocel2 = pm4py.read_ocel('./OCEL/ocelexample.csv')
-
-    result1 = Evaluation(ocel1)
-    result2 = Evaluation(ocel2)
-    
-    for ele in [(path1,result1), (path2,result2)]:
-        print('The quality dimensions of',ele[0][7:],'compared to its discovered model are: ','\nThe fitness is: ',ele[1][0],'\nThe precision is: ',ele[1][1],'\nThe simplicity is: ',ele[1][2])
+    print('The fitness is: ',result[0],'\nThe precision is: ',result[1],'\nThe simplicity is: ',result[2])
 
   
