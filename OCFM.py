@@ -228,14 +228,6 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
         #find out the respective source and target       
         source = Returncorrespondence(ar.source,pnpm4py['petri_nets'][ot][0])
         target = Returncorrespondence(ar.target,pnpm4py['petri_nets'][ot][0])
-        '''arcs = objpm4py.PetriNet.Arc(source,target,ar.weight,ar.properties)
-        pnpm4py['petri_nets'][ot][0].arcs.add(arcs)
-        if issourceplace:
-            source = objpm4py.PetriNet.Place(source.name, source.in_arcs,arcs)
-            target = objpm4py.PetriNet.Transition(target.name,target.label,arcs,target.out_arcs)
-        else:
-            source = objpm4py.PetriNet.Transition(source.name,source.label,source.in_arcs,arcs)
-            target = objpm4py.PetriNet.Place(target.name,arcs,target.out_arcs)'''
         petri_utils.add_arc_from_to(source, target, pnpm4py['petri_nets'][ot][0])
         print(target,target.out_arcs,'target out')
     #because the error reports missing key value: activities
