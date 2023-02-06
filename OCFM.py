@@ -12,7 +12,12 @@ import math
 import itertools
 from pm4py.visualization.footprints import visualizer as fp_visualizer
 from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
-
+from pm4py.objects.petri_net import obj as objpm4py
+from ocpa.objects.oc_petri_net import obj as objocpa
+from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
+from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
+from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
+from pm4py.objects.petri_net.utils import petri_utils
 
 def OCEL2OCFM(ocel):
     otlist = pm4py.ocel_get_object_types(ocel)
@@ -158,6 +163,133 @@ def EvalbyOCFM(ocel,parameters=None):
         print(EvalOCFM(ocfm1,ocfm2))
     else:
         raise ValueError("Parameter configuration is not done so far")
+
+
+def PNtranslate_OCPA2PM4PY(pnocpa):
+    
+    #construct key 'petri_nets'
+    pnpm4py = {}
+    pnpm4py['object_types']=set()
+    pnpm4py['activities']=set()
+    pnpm4py['petri_nets']={}
+    
+    #extract all the type to create the key first!!
+    pnpm4py['object_types'] = set()
+    for pl in pnocpa.places:
+        pnpm4py['object_types'].add(pl.object_type)
+    for ot in list(pnpm4py['object_types']):
+        pnpm4py['petri_nets'][ot] = []
+        #here you cannot use [_,_,_] because all the _ refer to the last cashed values!
+        pnpm4py['petri_nets'][ot].append(objpm4py.PetriNet())
+        
+    '''here we assumed the initial marking only contain one token'''
+    s = {}
+    t = {}
+    for pl in pnocpa.places:
+        #place = objpm4py.PetriNet.Place(pl.name,pl.in_arcs,pl.out_arcs)
+        if pl.initial:
+            place = objpm4py.PetriNet.Place('source')
+            
+        elif pl.final:
+            place = objpm4py.PetriNet.Place('sink')
+            
+        else:
+            place = objpm4py.PetriNet.Place(pl.name)
+        pnpm4py['petri_nets'][pl.object_type][0].places.add(place)
+    #for ot in list(pnpm4py['object_types']):
+        
+    #find how arcs defined, use this relation to specify the type
+    for tr in pnocpa.transitions:
+        #print(tr.label)
+        trantype = set()
+        if not tr.silent:
+            pnpm4py['activities'].add(tr.name)
+        for ar in pnocpa.arcs:
+            if ar.source == tr:
+                trantype.add(ar.target.object_type)
+            if ar.target == tr:
+                trantype.add(ar.source.object_type)
+        if tr.silent:
+            label = None
+        else:
+            label = tr.name
+        for ot in list(trantype):
+            #'label' is the same as 'name' here, otherwise the label will be empty and the net will not be labelled.
+            transition = objpm4py.PetriNet.Transition(tr.name,label)
+            pnpm4py['petri_nets'][ot][0].transitions.add(transition)
+    for ar in pnocpa.arcs:
+        
+        if type(ar.source)==objocpa.ObjectCentricPetriNet.Place:
+            ot = ar.source.object_type
+            issourceplace = True
+        else:
+            ot = ar.target.object_type
+            issourceplace = False
+        #find out the respective source and target       
+        source = Returncorrespondence(ar.source,pnpm4py['petri_nets'][ot][0])
+        target = Returncorrespondence(ar.target,pnpm4py['petri_nets'][ot][0])
+        '''arcs = objpm4py.PetriNet.Arc(source,target,ar.weight,ar.properties)
+        pnpm4py['petri_nets'][ot][0].arcs.add(arcs)
+        if issourceplace:
+            source = objpm4py.PetriNet.Place(source.name, source.in_arcs,arcs)
+            target = objpm4py.PetriNet.Transition(target.name,target.label,arcs,target.out_arcs)
+        else:
+            source = objpm4py.PetriNet.Transition(source.name,source.label,source.in_arcs,arcs)
+            target = objpm4py.PetriNet.Place(target.name,arcs,target.out_arcs)'''
+        petri_utils.add_arc_from_to(source, target, pnpm4py['petri_nets'][ot][0])
+        print(target,target.out_arcs,'target out')
+    #because the error reports missing key value: activities
+    #print(pnpm4py['activities'])
+    for ot in list(pnpm4py['object_types']):       
+        for pl in pnpm4py['petri_nets'][ot][0].places:
+            if pl.name == 'source':
+                s[ot] = objpm4py.Marking()            
+                s[ot][pl] = 1
+                print(pl.out_arcs,pl.in_arcs)
+            if pl.name == 'sink':
+                t[ot] = objpm4py.Marking()     
+                t[ot][pl] = 1
+                print(pl.out_arcs,pl.in_arcs)
+        
+        pnpm4py['petri_nets'][ot].extend([s[ot],t[ot]])
+        pnpm4py['petri_nets'][ot]=tuple(pnpm4py['petri_nets'][ot])
+        
+    
+    #keyerror for 'double_arcs_on_activity'
+    pnpm4py['double_arcs_on_activity']={}
+    for ot in pnpm4py['object_types']:
+        pnpm4py['double_arcs_on_activity'][ot]={}
+        for act in pnpm4py['activities']:
+             pnpm4py['double_arcs_on_activity'][ot][act] = Activityvariability(act,pnocpa)
+       
+    return pnpm4py
+
+#arg: pm4py net, return: pm4py place/transition
+def Returncorrespondence(ele,net):
+    if type(ele) == objocpa.ObjectCentricPetriNet.Place:
+        if ele.initial:
+            for pl in net.places:
+                if pl.name == 'source':
+                    return pl
+        elif ele.final:
+            for pl in net.places:
+                if pl.name == 'sink':
+                    return pl
+        else:
+            for pl in net.places:
+                if pl.name == ele.name:
+                    return pl
+    elif type(ele) == objocpa.ObjectCentricPetriNet.Transition:
+        for tr in net.transitions:
+            if tr.name == ele.name:
+                return tr
+            
+def Activityvariability(act,net):
+    for arc in net.arcs:
+        if (arc.source.name == act or arc.target.name == act) and arc.variable == True:
+            return True
+    return False
+
 
 
 if __name__ == "__main__":
