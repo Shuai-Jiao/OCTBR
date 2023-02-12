@@ -6,6 +6,7 @@ from pm4py.visualization.common import gview
 from graphviz import Source
 from pm4py.util import exec_utils
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import math
 import itertools
@@ -15,8 +16,13 @@ import datetime
 import pandas as pd
 from pm4py.objects.petri_net.obj import PetriNet, Marking
 from pm4py.objects.petri_net.utils import petri_utils
-import pm4py
 from pm4py.visualization.common import gview
+from pm4py.objects.petri_net import obj as objpm4py
+from ocpa.objects.oc_petri_net import obj as objocpa
+from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
+from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
+from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
+from ocpa.algo.conformance.precision_and_fitness import evaluator as quality_measure_factory
 
 
 def ParsingCSV(csvpath, parameters=None):
@@ -245,6 +251,7 @@ def Restrictedmodel(model,ocel):
         model['petri_nets'][ot] = (net,im,fm)
     return model
 
+'''Only places have object type in ocpa, but in pm4py all the sub-petri net are keyed by ot'''
 def PNtranslate_OCPA2PM4PY(pnocpa):
     
     #construct key 'petri_nets'
@@ -269,15 +276,18 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
         #place = objpm4py.PetriNet.Place(pl.name,pl.in_arcs,pl.out_arcs)
         if pl.initial:
             place = objpm4py.PetriNet.Place('source')
-            
+            s[pl.object_type] = objpm4py.Marking()            
+            s[pl.object_type][place] = 1
         elif pl.final:
             place = objpm4py.PetriNet.Place('sink')
-            
+            t[pl.object_type] = objpm4py.Marking()     
+            t[pl.object_type][place] = 1
         else:
             place = objpm4py.PetriNet.Place(pl.name)
         pnpm4py['petri_nets'][pl.object_type][0].places.add(place)
-    #for ot in list(pnpm4py['object_types']):
-        
+            
+    for ot in list(pnpm4py['object_types']):
+        pnpm4py['petri_nets'][ot].extend([s[ot],t[ot]])
     #find how arcs defined, use this relation to specify the type
     for tr in pnocpa.transitions:
         #print(tr.label)
@@ -295,37 +305,22 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
             label = tr.name
         for ot in list(trantype):
             #'label' is the same as 'name' here, otherwise the label will be empty and the net will not be labelled.
-            transition = objpm4py.PetriNet.Transition(tr.name,label)
+            transition = objpm4py.PetriNet.Transition(tr.name,label,tr.in_arcs,tr.out_arcs,tr.properties)
             pnpm4py['petri_nets'][ot][0].transitions.add(transition)
     for ar in pnocpa.arcs:
-        
         if type(ar.source)==objocpa.ObjectCentricPetriNet.Place:
             ot = ar.source.object_type
-            issourceplace = True
         else:
             ot = ar.target.object_type
-            issourceplace = False
         #find out the respective source and target       
         source = Returncorrespondence(ar.source,pnpm4py['petri_nets'][ot][0])
         target = Returncorrespondence(ar.target,pnpm4py['petri_nets'][ot][0])
-        petri_utils.add_arc_from_to(source, target, pnpm4py['petri_nets'][ot][0])
-        print(target,target.out_arcs,'target out')
+        arcs = objpm4py.PetriNet.Arc(source,target,ar.weight,ar.properties)
+        pnpm4py['petri_nets'][ot][0].arcs.add(arcs)           
     #because the error reports missing key value: activities
     #print(pnpm4py['activities'])
-    for ot in list(pnpm4py['object_types']):       
-        for pl in pnpm4py['petri_nets'][ot][0].places:
-            if pl.name == 'source':
-                s[ot] = objpm4py.Marking()            
-                s[ot][pl] = 1
-                print(pl.out_arcs,pl.in_arcs)
-            if pl.name == 'sink':
-                t[ot] = objpm4py.Marking()     
-                t[ot][pl] = 1
-                print(pl.out_arcs,pl.in_arcs)
-        
-        pnpm4py['petri_nets'][ot].extend([s[ot],t[ot]])
+    for ot in list(pnpm4py['object_types']):
         pnpm4py['petri_nets'][ot]=tuple(pnpm4py['petri_nets'][ot])
-        
     
     #keyerror for 'double_arcs_on_activity'
     pnpm4py['double_arcs_on_activity']={}
@@ -363,8 +358,7 @@ def Activityvariability(act,net):
     return False
 
 #the inputs in pm4py standard
-import pm4py
-def OC_Token_based_replay(ocpn,ocel):
+def OC_Conformance(ocpn,ocel,method='token-based'):
     pndict, eldict, pnweight, elweight, fitdict, precdict = {}, {}, {}, {}, {}, {}
     pnfactor, elfactor = 0, 0
     for ot in ocpn['object_types']:
@@ -377,12 +371,191 @@ def OC_Token_based_replay(ocpn,ocel):
         pnweight[ot] = len(pndict[ot][0].arcs)/pnfactor
         elweight[ot] = len(eldict[ot])/elfactor
     for ot in ocpn['object_types']:
-        fitdict[ot] = pm4py.fitness_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])['log_fitness']
-        precdict[ot] = pm4py.precision_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
+        if method == 'token-based':
+            fitdict[ot] = pm4py.fitness_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])['log_fitness']
+            precdict[ot] = pm4py.precision_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
+        elif method == 'alignment':
+            fitdict[ot] = pm4py.fitness_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])['log_fitness']
+            precdict[ot] = pm4py.precision_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
+        else:
+            raise ValueError('Only token-based and alignment methods are available')
     fitness = sum([fitdict[ot]*elweight[ot] for ot in ocpn['object_types']])
     precision = sum([precdict[ot]*pnweight[ot] for ot in ocpn['object_types']])
-    return fitness
+    return fitness, precision
 
+def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
+    col = ['Ground truth','','Token-based replay','','Alignment','','Footprint-based method','']
+    col2 = []
+    for ele in range(4):
+        col2.extend(['fitness','precision'])
+    col = ['','']+col
+    col2 = ['','']+col2
+
+    if (not (len(ocellist) == len(ocpnlist))) and not automodel: 
+        raise ValueError("OCEL list is not consistent to the OCPN list")
+    row = []
+    ELpm4py, ELocpa,PNocpa = {}, {},{}
+    for ocel in ocellist:
+        name = ocel.split('/')[-1]
+        row.append(name)       
+        ELocpa[name] = ocel_import_factory.apply(ocel)
+        ELpm4py[name] = pm4py.read_ocel(ocel)
+        if automodel:
+            PNocpa[name] = ocpn_discovery_factory.apply(ELocpa[name], parameters={"debug": False})
+            ocpnlist = [PNocpa[name] for name in row]
+    PNpm4py = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist if type(pn)==objocpa.ObjectCentricPetriNet]
+    value = []
+
+    for i in range(len(row)):
+        row1 = [row[i],'Origin']
+        row2 = ['','Flower model']
+        row3 = ['','Restricted model']
+        
+        flower = Flowermodel(PNpm4py[i])
+        restrict = Restrictedmodel(PNpm4py[i],ELpm4py[row[i]])
+        
+        for j in range(4):
+            if j == 0:
+                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
+                _,prec = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
+                row1.extend([fit,prec])
+                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], flower)
+                _,prec = quality_measure_factory.apply(ELocpa[row[i]], flower)
+                row2.extend([fit,prec])
+                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], restrict)
+                _,prec = quality_measure_factory.apply(ELocpa[row[i]], restrict)
+                row3.extend([fit,prec])
+                
+            elif j == 1:
+                fit,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
+                _,prec = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
+                row1.extend([fit,prec])
+                fit,_ = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
+                _,prec = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
+                row2.extend([fit,prec])
+                fit,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
+                _,prec = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
+                row3.extend([fit,prec])
+            elif j == 2:
+                try:
+                    fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
+                    _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
+                    fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
+                    _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
+                    fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)
+                    _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)
+                    
+                except:
+                    fit1,fit2,fit3 = np.nan,np.nan,np.nan
+                    prec1,prec2,prec3 = np.nan,np.nan,np.nan
+                row1.extend([fit1,prec1])
+                row2.extend([fit2,prec2])
+                row3.extend([fit3,prec3])
+            elif j == 3:
+                for k in range(3):
+                    if k == 0:
+                        model = PNpm4py[i]
+                        currow = row1
+                    elif k == 1:
+                        model = flower
+                        currow = row2
+                    elif k == 2:
+                        model = restrict
+                        currow = row3
+                    ocpnlist = decomposeOCPN(model)
+                    ocfmmodel = OCPN2OCFM(ocpnlist)
+                    ocfmlog = OCEL2OCFM(ELpm4py[row[i]])
+                    fit,_ = EvalOCFM(ocfmlog,ocfmmodel)
+                    _,prec = EvalOCFM(ocfmlog,ocfmmodel)
+                    currow.extend([fit,prec])
+                    
+        value.extend([row1,row2,row3])
+
+    fig = plt.figure(figsize=(19,5))
+    ax=fig.gca()
+    ax.axis('off')
+    #plt.figure(figsize=(20,8))
+    #plt.table(cellText=[['']*4],colLabels=col,loc='bottom',bbox=[0,0.2,1,0.2])
+
+    table = plt.table(cellText=[col]+[col2]+value,loc='center')
+    #plt.table(cellText=[col],loc='top',bbox=[0,0.5,1,0.4])
+
+
+    fig.canvas.draw()
+    #merge the table below, the first will overwrite the second cell
+    mergecells(table,[(0,0),(1,0)])
+    mergecells(table,[(0,1),(1,1)])
+    for i in range(4):
+        mergecells1(table,(0,2+2*i),(0,3+2*i))
+    for i in range(len(row)):
+        mergecells(table,[(2+2*i,0),(2+2*i+1,0),(2+2*i+2,0)])
+    #tab.scale(1,2)
+
+def mergecells1(table, ix0, ix1):
+    ix0,ix1 = np.asarray(ix0), np.asarray(ix1)
+    d = ix1 - ix0
+    if not (0 in d and 1 in np.abs(d)):
+        raise ValueError("ix0 and ix1 should be the indices of adjacent cells. ix0: %s, ix1: %s" % (ix0, ix1))
+
+    if d[0]==-1:
+        edges = ('BRL', 'TRL')
+    elif d[0]==1:
+        edges = ('TRL', 'BRL')
+    elif d[1]==-1:
+        edges = ('BTR', 'BTL')
+    else:
+        edges = ('BTL', 'BTR')
+
+    # hide the merged edges
+    for ix,e in zip((ix0, ix1), edges):
+        table[ix[0], ix[1]].visible_edges = e
+
+    txts = [table[ix[0], ix[1]].get_text() for ix in (ix0, ix1)]
+    tpos = [np.array(t.get_position()) for t in txts]
+
+    # center the text of the 0th cell between the two merged cells
+    trans = (tpos[1] - tpos[0])/2
+    if trans[0] > 0 and txts[0].get_ha() == 'right':
+        # reduce the transform distance in order to center the text
+        trans[0] /= 2
+    elif trans[0] < 0 and txts[0].get_ha() == 'right':
+        # increase the transform distance...
+        trans[0] *= 2
+
+    #txts[0].set_transform(mpl.transforms.Affine2D().translate(*trans))
+
+    # hide the text in the 1st cell
+    txts[1].set_visible(False)
+
+#cells is a list of tuple (coordinate of the top left corner), the first cell will overwrite the remaining cells.
+def mergecells(table, cells):
+    cells_array = [np.asarray(c) for c in cells]
+    h = np.array([cells_array[i+1][0] - cells_array[i][0] for i in range(len(cells_array) - 1)])
+    v = np.array([cells_array[i+1][1] - cells_array[i][1] for i in range(len(cells_array) - 1)])
+
+    # if it's a horizontal merge, all values for `h` are 0
+    if not np.any(h):
+        # sort by horizontal coord
+        cells = np.array(sorted(list(cells), key=lambda v: v[1]))
+        edges = ['BTL'] + ['BT' for i in range(len(cells) - 2)] + ['BTR']
+    elif not np.any(v):
+        cells = np.array(sorted(list(cells), key=lambda h: h[0]))
+        edges = ['TRL'] + ['RL' for i in range(len(cells) - 2)] + ['BRL']
+    else:
+        raise ValueError("Only horizontal and vertical merges allowed")
+
+    for cell, e in zip(cells, edges):
+        table[cell[0], cell[1]].visible_edges = e
+        
+    txts = [table[cell[0], cell[1]].get_text() for cell in cells]
+    tpos = [np.array(t.get_position()) for t in txts]
+
+    # transpose the text of the left cell
+    trans = (tpos[-1] - tpos[0])/2
+    # didn't had to check for ha because I only want ha='center'
+    txts[0].set_transform(mpl.transforms.Affine2D().translate(*trans))
+    for txt in txts[1:]:
+        txt.set_visible(False)
 
 if __name__ == "__main__":
     path1 = '/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/OCEL/jsonocel/running-example.jsonocel'
