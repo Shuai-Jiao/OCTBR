@@ -1,6 +1,4 @@
-import matplotlib
 import pm4py
-import os
 import tempfile
 from pm4py.visualization.common import gview
 from graphviz import Source
@@ -8,9 +6,7 @@ from pm4py.util import exec_utils
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
-import math
 import itertools
-from pm4py.visualization.footprints import visualizer as fp_visualizer
 from pm4py.algo.discovery.footprints import algorithm as footprints_discovery
 import datetime
 import pandas as pd
@@ -21,8 +17,9 @@ from pm4py.objects.petri_net import obj as objpm4py
 from ocpa.objects.oc_petri_net import obj as objocpa
 from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
-from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 from ocpa.algo.conformance.precision_and_fitness import evaluator as quality_measure_factory
+import copy
+from multiset import *
 
 
 def ParsingCSV(csvpath, parameters=None):
@@ -143,9 +140,10 @@ def MergeOCFM(ocfmlist,variablity = False):
 
 def EvalOCFM(logocfm,modelocfm): #ocfm1 and ocfm2 are both lists
     nonconflicttotal, conform, _ = CompareOCFM(logocfm,modelocfm)
-    fitness = conform/nonconflicttotal
+    # nonconflicttotal+1 to ensure nonconflicttotal is not 0
+    fitness = conform/(nonconflicttotal+1)
     nonconflicttotal, conform, seqratio = CompareOCFM(modelocfm,logocfm)
-    precision = conform/nonconflicttotal
+    precision = conform/(nonconflicttotal+1)
     simplicity = 1-1/(1 + np.exp(-10*seqratio+7)) #offset to 7
     return fitness, precision, simplicity 
         
@@ -211,7 +209,8 @@ def Evaluation(ocel,ocpn):
     result = EvalOCFM(ocfmlog,ocfmmodel)
     return result
 
-def Flowermodel(model):
+def Flowermodel(inputmodel):
+    model = copy.deepcopy(inputmodel)
     ocpn = model
     activitytype = {}
     for act in model['activities']:
@@ -242,7 +241,8 @@ def Flowermodel(model):
         ocpn['petri_nets'][ot] = [net,im,fm]
     return ocpn
 
-def Restrictedmodel(model,ocel):
+def Restrictedmodel(inputmodel,ocel):
+    model = copy.deepcopy(inputmodel)
     for ot in model['object_types']:
         flat_log = pm4py.ocel_flattening(ocel, ot)
         onetracelog = flat_log.loc[flat_log['case:concept:name'] == flat_log['case:concept:name'][0]]
@@ -532,7 +532,8 @@ def Activityvariability(act,net):
     return False
 
 #the inputs in pm4py standard
-def OC_Conformance(ocpn,ocel,method='token-based'):
+#the inputs in pm4py standard. Only support token-based and alignment. precision can be really slow sometime, so we don't compute it by default
+def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False):
     pndict, eldict, pnweight, elweight, fitdict, precdict = {}, {}, {}, {}, {}, {}
     pnfactor, elfactor = 0, 0
     for ot in ocpn['object_types']:
@@ -547,15 +548,21 @@ def OC_Conformance(ocpn,ocel,method='token-based'):
     for ot in ocpn['object_types']:
         if method == 'token-based':
             fitdict[ot] = pm4py.fitness_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])['log_fitness']
-            precdict[ot] = pm4py.precision_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
+            if getprecision:
+                precdict[ot] = pm4py.precision_token_based_replay(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
         elif method == 'alignment':
             fitdict[ot] = pm4py.fitness_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])['log_fitness']
-            precdict[ot] = pm4py.precision_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
+            if getprecision:
+                precdict[ot] = pm4py.precision_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
         else:
             raise ValueError('Only token-based and alignment methods are available')
     fitness = sum([fitdict[ot]*elweight[ot] for ot in ocpn['object_types']])
-    precision = sum([precdict[ot]*pnweight[ot] for ot in ocpn['object_types']])
-    return fitness, precision
+    if getprecision:
+        precision = sum([precdict[ot]*pnweight[ot] for ot in ocpn['object_types']])
+    if getprecision:
+        return fitness, precision
+    else:
+        return fitness
 
 def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     col = ['Ground truth','','Token-based replay','','Alignment','','Footprint-based method','']
@@ -574,42 +581,54 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
         row.append(name)       
         ELocpa[name] = ocel_import_factory.apply(ocel)
         ELpm4py[name] = pm4py.read_ocel(ocel)
-        if automodel:
-            PNocpa[name] = ocpn_discovery_factory.apply(ELocpa[name], parameters={"debug": False})
-            ocpnlist = [PNocpa[name] for name in row]
+        
+        PNocpa[name] = ocpn_discovery_factory.apply(ELocpa[name], parameters={"debug": False})
+    if automodel:
+        ocpnlist = [PNocpa[name] for name in row]
+    a = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist]
+    #print('------',a)
     PNpm4py = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist if type(pn)==objocpa.ObjectCentricPetriNet]
+    
     value = []
-
     for i in range(len(row)):
         row1 = [row[i],'Origin']
         row2 = ['','Flower model']
         row3 = ['','Restricted model']
-        
+        #print('@@@@@@',PNpm4py)
         flower = Flowermodel(PNpm4py[i])
         restrict = Restrictedmodel(PNpm4py[i],ELpm4py[row[i]])
-        
+        #print('PNpm4py-----',PNpm4py)
+        #Now is different to @@@@
+        #print('Flower:',flower,"\n restrict",restrict,'\n model:',ELpm4py[row[i]])
+        #the flower model and restricted model are the same here
+        #break
         for j in range(4):
             if j == 0:
-                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
-                _,prec = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
-                row1.extend([fit,prec])
-                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], flower)
-                _,prec = quality_measure_factory.apply(ELocpa[row[i]], flower)
-                row2.extend([fit,prec])
-                fit,_ = quality_measure_factory.apply(ELocpa[row[i]], restrict)
-                _,prec = quality_measure_factory.apply(ELocpa[row[i]], restrict)
-                row3.extend([fit,prec])
-                
+                prec1,_ = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
+                _,fit1 = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
+                row1.extend([fit1,prec1])
+                prec2,_ = quality_measure_factory.apply(ELocpa[row[i]], PNtranslate_PM4PY2OCPA(flower))
+                _,fit2 = quality_measure_factory.apply(ELocpa[row[i]], PNtranslate_PM4PY2OCPA(flower))
+                row2.extend([fit2,prec2])
+                prec3,_ = quality_measure_factory.apply(ELocpa[row[i]], PNtranslate_PM4PY2OCPA(restrict))
+                _,fit3 = quality_measure_factory.apply(ELocpa[row[i]], PNtranslate_PM4PY2OCPA(restrict))
+                row3.extend([fit3,prec3])
+                #print(i,fit1,prec1,fit2,prec2,fit3,prec3)
             elif j == 1:
-                fit,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
-                _,prec = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
-                row1.extend([fit,prec])
-                fit,_ = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
-                _,prec = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
-                row2.extend([fit,prec])
-                fit,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
-                _,prec = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
-                row3.extend([fit,prec])
+                fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
+                _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
+                row1.extend([fit1,prec1])
+                fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
+                _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
+                row2.extend([fit2,prec2])
+                fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
+                _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
+                row3.extend([fit3,prec3])
+                #print('token',i,fit1,prec1,fit2,prec2,fit3,prec3)
+                #print('token',i,OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True),\
+                      #OC_Conformance(flower,ELpm4py[row[i]],'token-based',True),\
+                      #OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True))
+                #print('token-----:',flower,restrict,PNpm4py[i],ELpm4py[row[i]])
             elif j == 2:
                 try:
                     fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
@@ -622,6 +641,8 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 except:
                     fit1,fit2,fit3 = np.nan,np.nan,np.nan
                     prec1,prec2,prec3 = np.nan,np.nan,np.nan
+                    
+                #print('alignment',i,fit1,prec1,fit2,prec2,fit3,prec3)
                 row1.extend([fit1,prec1])
                 row2.extend([fit2,prec2])
                 row3.extend([fit3,prec3])
@@ -636,11 +657,11 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                     elif k == 2:
                         model = restrict
                         currow = row3
-                    ocpnlist = decomposeOCPN(model)
-                    ocfmmodel = OCPN2OCFM(ocpnlist)
+                    ocpn = decomposeOCPN(model)
+                    ocfmmodel = OCPN2OCFM(ocpn)
                     ocfmlog = OCEL2OCFM(ELpm4py[row[i]])
-                    fit,_ = EvalOCFM(ocfmlog,ocfmmodel)
-                    _,prec = EvalOCFM(ocfmlog,ocfmmodel)
+                    fit,_,_ = EvalOCFM(ocfmlog,ocfmmodel)
+                    _,prec,_ = EvalOCFM(ocfmlog,ocfmmodel)
                     currow.extend([fit,prec])
                     
         value.extend([row1,row2,row3])
@@ -662,7 +683,7 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     for i in range(4):
         mergecells1(table,(0,2+2*i),(0,3+2*i))
     for i in range(len(row)):
-        mergecells(table,[(2+2*i,0),(2+2*i+1,0),(2+2*i+2,0)])
+        mergecells(table,[(2+3*i,0),(2+3*i+1,0),(2+3*i+2,0)])
     #tab.scale(1,2)
 
 def mergecells1(table, ix0, ix1):
@@ -731,8 +752,85 @@ def mergecells(table, cells):
     for txt in txts[1:]:
         txt.set_visible(False)
 
+def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
+    #start with the initial
+    if type(ocpn) is not objocpa.ObjectCentricPetriNet:
+        raise ValueError("The ocpn format is not well-defined in ocpa")
+    eventdict = ocel.obj.raw.events
+    acttrans = []
+    p,m,c,r = 0,0,0,0
+    #the tokens(objects) in the corresponding place
+    marking: Dict[objocpa.Place,Multiset]
+    marking = {}
+    for eventID in eventdict:
+        event = eventdict[eventID]
+        tr = ocpn.find_transition(event.act)
+        for obj in event.omap:
+            #Consider precondition
+            missing = True
+            for arc in tr.in_arcs:
+                #Check whether the marking is initialized
+                Initializemarking(marking,arc.source)
+                #first determine whether the start place for the corr. type is
+                if arc.source.initial and arc.source.object_type == Findobject(ocel,obj).type:
+                    missing = False
+                    p += 1
+                    c += 1
+                #discuss the case the token exist for firing
+                elif obj in marking[arc.source]:
+                    #fire all possible token
+                    #marking_copy = copy.deepcopy(marking[arc.source])
+                    marking[arc.source].remove(obj)
+                    missing = False
+                    c += 1
+            if missing:
+                m += 1
+                c += 1
+            #Consider effect
+            for arc in tr.out_arcs:
+                #use the obj's name to find the obj
+                #instance = Findobject(ocel,obj)
+                #It has to be set for the two if-statement
+                
+                if arc.target.object_type == Findobject(ocel,obj).type:
+                    Initializemarking(marking,arc.target)
+                    marking[arc.target].add(obj)
+                    p += 1
+                #consider the end place
+                if arc.target.final and arc.target.object_type == Findobject(ocel,obj).type:
+                    print(arc.target.object_type,obj)
+                    #Initializemarking(marking,arc.target)
+                    if obj in marking[arc.target]:
+                        marking[arc.target].remove(obj)
+                    c += 1
+    for k in marking.keys():
+            r += len(marking[k])
+    #print(p,c,m,r,p+m,c+r)
+    return 1/2*(1-m/c)+1/2*(1-r/p)
+
+def findnextnotsilent(ocpn,silence):
+    nextnonsilence = []
+    for ele0 in silence.out_arcs:
+        for ele1 in ele0.target.out_arcs:
+            if ele1.target.silent == False:
+                nextnonsilence.append(ele1.target)
+    return nextnonsilence
+
+def Findobject(ocel,obj:str):
+    for o in ocel.obj.raw.objects:
+        if ocel.obj.raw.objects[o].id == obj:
+            return ocel.obj.raw.objects[o]
+    raise ValueError("Object ID doesn't exist")
+def Initializemarking(marking,key):
+    if not key in marking.keys():
+        #print(key)
+        #we have to define it as a multiset! Because the same object could occur multiple times!!! 
+        #Otherwise p+m != c+r
+        marking[key] = Multiset()
+
+
 if __name__ == "__main__":
-    path1 = '/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/OCEL/jsonocel/running-example.jsonocel'
+    path1 = '/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/sample_logs/jsonocel/running-example.jsonocel'
     ocel1 = pm4py.read_ocel(path1)
     path2 = '/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/OCEL/example.csv'
 
