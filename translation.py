@@ -45,6 +45,7 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
     for ot in list(pnpm4py['object_types']):
         pnpm4py['petri_nets'][ot].extend([s[ot],t[ot]])
     #find how arcs defined, use this relation to specify the type
+
     for tr in pnocpa.transitions:
         #print(tr.label)
         trantype = set()
@@ -61,8 +62,11 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
             label = tr.name
         for ot in list(trantype):
             #'label' is the same as 'name' here, otherwise the label will be empty and the net will not be labelled.
-            transition = objpm4py.PetriNet.Transition(tr.name,label,tr.in_arcs,tr.out_arcs,tr.properties)
+            # ? so you used ocpa's arcs as input of the pm4py transition ?
+            #transition = objpm4py.PetriNet.Transition(tr.name,label,tr.in_arcs,tr.out_arcs,tr.properties)
+            transition = objpm4py.PetriNet.Transition(tr.name,label)
             pnpm4py['petri_nets'][ot][0].transitions.add(transition)
+
     for ar in pnocpa.arcs:
         if type(ar.source)==objocpa.ObjectCentricPetriNet.Place:
             ot = ar.source.object_type
@@ -74,7 +78,33 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
         arcs = objpm4py.PetriNet.Arc(source,target,ar.weight,ar.properties)
         pnpm4py['petri_nets'][ot][0].arcs.add(arcs)           
     #because the error reports missing key value: activities
+    #You can just remove pnpm4py['activities] and see what kind of errors will occur!
     #print(pnpm4py['activities'])
+
+    #Reconstruct the place with arcs
+    for ot in pnpm4py['object_types']:
+        for pl in pnpm4py['petri_nets'][ot][0].places:
+            in_arcs = set()
+            out_arcs = set()
+            for arc in pnpm4py['petri_nets'][ot][0].arcs:
+                if arc.target == pl:
+                    in_arcs.add(arc)
+                if arc.source == pl:
+                    out_arcs.add(arc)
+            pl._Place__in_arcs = in_arcs
+            pl._Place__out_arcs = out_arcs
+    #Reconstruct the transition with arcs
+        for tr in pnpm4py['petri_nets'][ot][0].transitions:
+            in_arcs = set()
+            out_arcs = set()
+            for arc in pnpm4py['petri_nets'][ot][0].arcs:
+                if arc.target == tr:
+                    in_arcs.add(arc)
+                if arc.source == tr:
+                    out_arcs.add(arc)
+            tr._Transition__in_arcs = in_arcs
+            tr._Transition__out_arcs = out_arcs
+
     for ot in list(pnpm4py['object_types']):
         pnpm4py['petri_nets'][ot]=tuple(pnpm4py['petri_nets'][ot])
     

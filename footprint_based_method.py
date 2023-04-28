@@ -18,7 +18,7 @@ def OCEL2OCFM(ocel):
 def OCPN2OCFM(ocpnlist):
     ocfmlist = {}
     for ot, ocpn in ocpnlist.items():
-        ocfm = footprints_discovery.apply(ocpn[0], ocpn[1], ocpn[2])   
+        ocfm = footprints_discovery.apply(ocpn[0], ocpn[1], ocpn[2],variant=footprints_discovery.Variants.PETRI_REACH_GRAPH)
         ocfmlist[ot] = ocfm
     return ocfmlist
 
