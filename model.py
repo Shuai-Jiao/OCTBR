@@ -4,6 +4,7 @@ from pm4py.objects.petri_net.utils import petri_utils
 import copy
 from multiset import *
 from ocpa.objects.oc_petri_net.obj import ObjectCentricPetriNet
+from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 
 def GetOCPN(ocpn):
     integ = {'places':[],'transitions':[],'arcs':[]}
@@ -85,6 +86,10 @@ def Flowermodel(inputmodel):
 
         ocpn['petri_nets'][ot] = [net,im,fm]
     return ocpn
+
+def DiscardedRestrictedmodel(ocel):
+    print(type(ocel.process_execution_mappings[0]))
+    return ocpn_discovery_factory.apply(ocel.process_execution_mappings[0], parameters={"debug": False})
 
 def Restrictedmodel(inputmodel,ocel):
     model = copy.deepcopy(inputmodel)
