@@ -182,10 +182,17 @@ def PNMatching(ele,ocpn,ot=None):
 
 def PNtranslate_PM4PY2OCPA(ocpn):
     ocpapn = objocpa.ObjectCentricPetriNet()
+
     for ot in ocpn['object_types']:
         #first construct places and enrich later
-        for pl in ocpn['petri_nets'][ot][0].places:            
-            place = objocpa.ObjectCentricPetriNet.Place(ot+pl.name,ot)
+        for pl in ocpn['petri_nets'][ot][0].places:
+            i,f = False,False
+            #print('@@',type(p),ocpn['petri_nets'][pl.object_type][1][p])
+            if ocpn['petri_nets'][ot][1][pl]==1:
+                i = True
+            if ocpn['petri_nets'][ot][2][pl]==1:
+                f = True            
+            place = objocpa.ObjectCentricPetriNet.Place(name = ot+pl.name, object_type = ot, initial=i, final=f)
             ocpapn.places.add(place)
             #inarc = objocpa.ObjectCentricPetriNet.Arc(target=place)
             
@@ -258,20 +265,25 @@ def PNtranslate_PM4PY2OCPA(ocpn):
             if a.target.name == pl.name:
                 #print('add outarcs')
                 inarcs.add(a)
-        p = Returncorrespondence(pl,ocpn['petri_nets'][pl.object_type][0],pl.object_type)
-        #print(pl.name,ocpn['petri_nets'][pl.object_type][0])
-        i,f = False,False
-        #print('@@',type(p),ocpn['petri_nets'][pl.object_type][1][p])
-        if ocpn['petri_nets'][pl.object_type][1][p]==1:
-            i = True
-        if ocpn['petri_nets'][pl.object_type][2][p]==1:
-            f = True
+        #returned p is in pm4py
+        #p = Returncorrespondence(pl,ocpn['petri_nets'][pl.object_type][0],pl.object_type)
+        # i and f indicate start or end place
+        ##if ocpn['petri_nets'][pl.object_type][1][p]==1:
+            #i = True
+        #if ocpn['petri_nets'][pl.object_type][2][p]==1:
+            #f = True
         #print(type(pl),type(ocpapn.places))
-        p = pl
-        ocpapn.places.remove(p)
-        pl = objocpa.ObjectCentricPetriNet.Place(pl.name,pl.object_type,outarcs,inarcs,i,f)
-        p = pl
-        ocpapn.places.add(p)
+        #p = pl
+        # You cannot just remove the old place and then add a new one! Because the linkage of the \
+        # new arcs don't have dependency with the new places!!!
+        pl._Place__in_arcs = inarcs
+        pl._Place__out_arcs = outarcs
+        #ocpapn._Place__initial = i
+        #ocpapn._Place__final = f
+        #ocpapn.places.remove(p)
+        #pl = objocpa.ObjectCentricPetriNet.Place(pl.name,pl.object_type,outarcs,inarcs,i,f)
+        #p = pl
+        #ocpapn.places.add(p)
     for tr in ocpapn.transitions:
         inarcs = set()
         outarcs = set()
@@ -280,14 +292,17 @@ def PNtranslate_PM4PY2OCPA(ocpn):
                 outarcs.add(a)
             if a.target.name == tr.name:
                 inarcs.add(a)
-        t = tr
-        ocpapn.transitions.remove(t)
-        tr = objocpa.ObjectCentricPetriNet.Transition(tr.name,tr.label,inarcs,outarcs,None,tr.silent)
-        t = tr
-        ocpapn.transitions.add(t)
-    for arc in ocpapn.arcs:
-        '''if arc.source.name == "productstau1" or arc.target.name == "productstau1":
-            print('kalala')'''
+        tr._Transition__in_arcs = inarcs
+        tr._Transition__out_arcs = outarcs
+        #t = tr
+        #ocpapn.transitions.remove(t)
+        #tr = objocpa.ObjectCentricPetriNet.Transition(tr.name,tr.label,inarcs,outarcs,None,tr.silent)
+        #t = tr
+        #ocpapn.transitions.add(t)
+
+    '''for arc in ocpapn.arcs:
+        #if arc.source.name == "productstau1" or arc.target.name == "productstau1":
+            #print('kalala')
         for pl in ocpapn.places:
             if pl.name == arc.source.name:
                 s = pl
@@ -302,11 +317,11 @@ def PNtranslate_PM4PY2OCPA(ocpn):
             #print(type(t),type(s),s.name,t.name,'--',arc.source.name,arc.target.name)
             #b = True
             #print(b,ot,n,ocpn['double_arcs_on_activity'][ot])
-        '''if s.name == "productstau1" or t.name == "productstau1":
-            print('hhhhh')'''
+        #if s.name == "productstau1" or t.name == "productstau1":
+            print('hhhhh')
         a = arc
         ocpapn.arcs.remove(a)
         arc = objocpa.ObjectCentricPetriNet.Arc(s,t,arc.variable)
         a = arc
-        ocpapn.arcs.add(a)
+        ocpapn.arcs.add(a)'''
     return ocpapn

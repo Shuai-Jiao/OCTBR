@@ -3,6 +3,7 @@ from pm4py.objects.petri_net.obj import PetriNet, Marking
 from pm4py.objects.petri_net.utils import petri_utils
 import copy
 from multiset import *
+from ocpa.objects.oc_petri_net.obj import ObjectCentricPetriNet
 
 def GetOCPN(ocpn):
     integ = {'places':[],'transitions':[],'arcs':[]}
@@ -23,6 +24,8 @@ def decomposeOCPN(model):
         modellist[key] = demodel
     return modellist
 
+# You have to define the dependencies between places, transitions, and arcs\
+# otherwise, the algorithm could not work. 
 def Flowermodel(inputmodel):
     model = copy.deepcopy(inputmodel)
     ocpn = model
@@ -37,21 +40,49 @@ def Flowermodel(inputmodel):
     
     places = {}
     transitions = {}
-    im,fm = Marking(),Marking()
+    
     for ot in objecttype:
+        im,fm = Marking(),Marking()
         net = PetriNet(ot)
         places[ot] = PetriNet.Place(ot)
         net.places.add(places[ot])
         im[places[ot]] = 1
-        fm[places[ot]] = 1
+        #No place should be the final marking!!!
+        #fm[places[ot]] = 1
         
         for trans in activitytype.keys():
             for ot2 in activitytype[trans]: 
                 if ot2 == ot:
                     transitions[trans] = PetriNet.Transition(trans,trans)
                     net.transitions.add(transitions[trans])
+                    #If we used pm4py method to add an arc, only arc will be created\
+                    #but the dependencies with the corr. places and transitions are\
+                    #still missing! e.g., pl.in_arcs = set() for all places!
                     petri_utils.add_arc_from_to(places[ot],transitions[trans],net)
-                    petri_utils.add_arc_from_to(transitions[trans],places[ot],net)    
+                    petri_utils.add_arc_from_to(transitions[trans],places[ot],net)
+        #Reconstruct the dependencies
+    
+        for pl in net.places:
+            in_arcs = set()
+            out_arcs = set()
+            for arc in net.arcs:
+                if arc.source == pl:
+                    out_arcs.add(pl)
+                if arc.target == pl:
+                    in_arcs.add(pl)
+            pl._Place__in_arcs = in_arcs
+            pl._Place__out_arcs = out_arcs
+        for tr in net.transitions:
+            in_arcs = set()
+            out_arcs = set()
+            for arc in net.arcs:
+                if arc.source == tr:
+                    out_arcs.add(tr)
+                if arc.target == tr:
+                    in_arcs.add(tr)
+            tr._Transition__in_arcs = in_arcs
+            tr._Transition__out_arcs = out_arcs
+
         ocpn['petri_nets'][ot] = [net,im,fm]
     return ocpn
 
@@ -64,3 +95,26 @@ def Restrictedmodel(inputmodel,ocel):
         net, im, fm = pm4py.discover_petri_net_inductive(event_log)
         model['petri_nets'][ot] = (net,im,fm)
     return model
+
+#Method done by Niklas
+def create_flower_model(ocpn,ots):
+    arcs = []
+    transitions = []
+    places = []
+    [places.append(ObjectCentricPetriNet.Place(name=c+"1",object_type=c,initial=True)) for c in ots]
+    #[places.append(ObjectCentricPetriNet.Place(name=c+"final",object_type=c,final=True)) for c in ots]
+    for t in [x for x in ocpn.transitions if not x.silent]:
+        t_new = ObjectCentricPetriNet.Transition(name=t.name)
+        transitions.append(t_new)
+        for ot in ots:
+            if ot in [a.source.object_type for a in t.in_arcs]:
+                var = any([a.variable for a in t.in_arcs if a.source.object_type == ot ])
+                source_place = [p for p in places if p.initial and p.object_type == ot][0]
+                in_a = ObjectCentricPetriNet.Arc(source_place, t_new, variable = var)
+                out_a = ObjectCentricPetriNet.Arc(t_new, source_place, variable = var)
+                arcs.append(in_a)
+                arcs.append(out_a)
+                t_new.in_arcs.add(in_a)
+                t_new.out_arcs.add(out_a)
+    flower_ocpn = ObjectCentricPetriNet(places = places, transitions = transitions, arcs = arcs)
+    return flower_ocpn

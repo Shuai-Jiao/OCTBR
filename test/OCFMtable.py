@@ -1,4 +1,3 @@
-
 import sys
 sys.path.append(".")
 from footprint_based_method import OCEL2OCFM, OCPN2OCFM, EvalOCFM
