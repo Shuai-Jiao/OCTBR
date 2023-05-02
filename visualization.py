@@ -15,7 +15,7 @@ from graphviz import Source
 from matplotlib import pyplot as plt
 import numpy as np
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
-from footprint_based_method import OCEL2OCFM, OCPN2OCFM, EvalOCFM
+
 from token_based_replay import OC_Conformance
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
 
