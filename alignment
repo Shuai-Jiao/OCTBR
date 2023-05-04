@@ -1,7 +1,7 @@
 import pm4py
 from multiset import *
 
-def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "average"):
+def OC_Conformance(ocpn,ocel,method='alignment',getprecision=False, weight = "average"):
     pndict, eldict, pnweight, elweight, fitdict, precdict = {}, {}, {}, {}, {}, {}
     pnfactor, elfactor = 0, 0
     for ot in ocpn['object_types']:

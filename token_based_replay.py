@@ -2,6 +2,7 @@ import pm4py
 from ocpa.objects.oc_petri_net import obj as objocpa
 from multiset import *
 
+#ONLY accept pm4py format!
 def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "average"):
     pndict, eldict, pnweight, elweight, fitdict, precdict = {}, {}, {}, {}, {}, {}
     pnfactor, elfactor = 0, 0
@@ -32,6 +33,7 @@ def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "
                 precdict[ot] = pm4py.precision_alignments(eldict[ot], pndict[ot][0], pndict[ot][1], pndict[ot][2])
         else:
             raise ValueError('Only token-based and alignment methods are available')
+    #print([(ot,fitdict[ot]) for ot in ocpn['object_types']])
     fitness = sum([fitdict[ot]*elweight[ot] for ot in ocpn['object_types']])
     if getprecision:
         precision = sum([precdict[ot]*pnweight[ot] for ot in ocpn['object_types']])
@@ -39,7 +41,8 @@ def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "
         return fitness, precision
     else:
         return fitness
-    
+
+#Based on OCPA    
 def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
     #start with the initial
     if type(ocpn) is not objocpa.ObjectCentricPetriNet:
@@ -53,6 +56,9 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
     for eventID in eventdict:
         event = eventdict[eventID]
         tr = ocpn.find_transition(event.act)
+        #tr could be None! if there is no such transition in the petri net
+        if tr is None:
+            continue
         for obj in event.omap:
             #Consider precondition
             missing = True
@@ -86,14 +92,14 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
                     p += 1
                 #consider the end place
                 if arc.target.final and arc.target.object_type == Findobject(ocel,obj).type:
-                    print(arc.target.object_type,obj)
+                    #print(arc.target.object_type,obj)
                     #Initializemarking(marking,arc.target)
                     if obj in marking[arc.target]:
                         marking[arc.target].remove(obj)
                     c += 1
     for k in marking.keys():
             r += len(marking[k])
-    #print(p,c,m,r,p+m,c+r)
+    #print('pcmr:',p,c,m,r,p+m,c+r)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
 def findnextnotsilent(ocpn,silence):

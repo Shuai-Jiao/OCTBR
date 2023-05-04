@@ -48,8 +48,11 @@ def Flowermodel(inputmodel):
         places[ot] = PetriNet.Place(ot)
         net.places.add(places[ot])
         im[places[ot]] = 1
-        #No place should be the final marking!!!
-        #fm[places[ot]] = 1
+        #No place are marked as final places in Niklas\
+        #But if there is no final places, the token-based\
+        #method will have too many remaining tokens at the end!!!
+        #otherwise the fitness of the flower model will be 75% instead of 100%
+        fm[places[ot]] = 1
         
         for trans in activitytype.keys():
             for ot2 in activitytype[trans]: 
@@ -68,9 +71,9 @@ def Flowermodel(inputmodel):
             out_arcs = set()
             for arc in net.arcs:
                 if arc.source == pl:
-                    out_arcs.add(pl)
+                    out_arcs.add(arc)
                 if arc.target == pl:
-                    in_arcs.add(pl)
+                    in_arcs.add(arc)
             pl._Place__in_arcs = in_arcs
             pl._Place__out_arcs = out_arcs
         for tr in net.transitions:
@@ -78,9 +81,9 @@ def Flowermodel(inputmodel):
             out_arcs = set()
             for arc in net.arcs:
                 if arc.source == tr:
-                    out_arcs.add(tr)
+                    out_arcs.add(arc)
                 if arc.target == tr:
-                    in_arcs.add(tr)
+                    in_arcs.add(arc)
             tr._Transition__in_arcs = in_arcs
             tr._Transition__out_arcs = out_arcs
 

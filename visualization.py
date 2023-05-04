@@ -266,3 +266,8 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     for i in range(len(row)):
         mergecells(table,[(2+3*i,0),(2+3*i+1,0),(2+3*i+2,0)])
     #tab.scale(1,2)
+
+    #Collect the outputs
+    return [{'Discovered Model: ':row[i], 'fitness: ':row1[2*i], 'precision: ':row1[2*i+1],\
+      'Flower Model: ':row[i], 'fitness: ':row2[2*i], 'precision: ':row2[2*i+1],\
+        'Restricted Model: ':row[i], 'fitness: ':row3[2*i], 'precision: ':row3[2*i+1]} for i in range(len(row))]
