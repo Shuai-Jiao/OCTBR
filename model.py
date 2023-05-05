@@ -5,6 +5,13 @@ import copy
 from multiset import *
 from ocpa.objects.oc_petri_net.obj import ObjectCentricPetriNet
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
+from ocpa.objects.log.ocel import OCEL
+from ocpa.objects.log.variants.table import Table
+from ocpa.objects.log.variants.graph import EventGraph
+import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+import ocpa.objects.log.variants.util.table as table_utils
+from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
+from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 
 def GetOCPN(ocpn):
     integ = {'places':[],'transitions':[],'arcs':[]}
@@ -94,15 +101,73 @@ def DiscardedRestrictedmodel(ocel):
     print(type(ocel.process_execution_mappings[0]))
     return ocpn_discovery_factory.apply(ocel.process_execution_mappings[0], parameters={"debug": False})
 
-def Restrictedmodel(inputmodel,ocel):
+#ocel in OCPA!
+def Restrictedmodel(ocel):
+    #find out the shortest length
+    shortestvar = ocel.process_executions[0]
+    for var in ocel.process_executions:
+         if len(var) < len(shortestvar):
+             shortestvar = var
+    #filter the df according to the shortestvar
+    filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(list(shortestvar))]
+    #convert to ocel format
+    log = Table(filteredlog, parameters = ocel.parameters)
+    obj = obj_converter.apply(filteredlog)
+    graph = EventGraph(table_utils.eog_from_log(log))
+    result = OCEL(log, obj, graph, ocel.parameters)
+    #"debug" has to be false, otherwise the print will occur
+    restrictedmodel = ocpn_discovery_factory.apply(result,parameters={"debug": False})
+    ocpn_vis_factory.save(ocpn_vis_factory.apply(restrictedmodel), "./test/restrict.png")
+    return restrictedmodel
+
+def Discarded_Restrictedmodel(inputmodel,ocel):
     model = copy.deepcopy(inputmodel)
     for ot in model['object_types']:
+        #flat_log is a type of pandas frame, we have to convert it to EL format
         flat_log = pm4py.ocel_flattening(ocel, ot)
-        onetracelog = flat_log.loc[flat_log['case:concept:name'] == flat_log['case:concept:name'][0]]
-        event_log = pm4py.convert_to_event_log(onetracelog)
-        net, im, fm = pm4py.discover_petri_net_inductive(event_log)
+        print('type(flat_log)',type(flat_log))
+        #pm4py.get_variants(flat_log) returns wrong variants!!!\
+        #which leads to error later!!!!
+        variants = pm4py.get_variants(flat_log)
+        #print('variants-------',variants)
+        '''s = set()
+        for case in pm4py.convert_to_event_log(flat_log):
+            c = []
+            for event in case:
+                c.append(event["concept:name"])
+            s.add(str(c))'''
+        print('variants2-----',Lowestvariant(pm4py.convert_to_event_log(flat_log)))
+        #print(Lowestvariant(variants))
+        #onetracelog = pm4py.filter_variants(flat_log,[Lowestvariant(pm4py.convert_to_event_log(flat_log))])
+        
+        onetracelog = pm4py.filter_variants(flat_log,variants.keys())
+        print('onetracelog',onetracelog)
+        #onetracelog = pm4py.filter_variants_top_k(flat_log,len(variants))
+        #print(variants)
+        #onetracelog = flat_log.loc[flat_log['case:concept:name'] == flat_log['case:concept:name'][0]]
+        #event_log = pm4py.convert_to_event_log(onetracelog)
+        net, im, fm = pm4py.discover_petri_net_inductive(pm4py.convert_to_event_log(onetracelog))
         model['petri_nets'][ot] = (net,im,fm)
+        pm4py.save_vis_petri_net(net,im,fm,"./test/restrict.png")
     return model
+
+def Lowestvariant(log):
+    frequency = dict()
+    for case in log:
+        var = '"'
+        for event in case:
+            var += event["concept:name"]+','
+        if var[:-1]+'"' not in frequency:
+            frequency[var[:-1]+'"'] = 1
+        else:
+            frequency[var[:-1]+'"'] += 1
+    min = float('inf')
+    for k in frequency.keys():
+        if frequency[k] < min:
+            min = frequency[k]
+            lowestvariant = k
+    #print('lowestvariant',lowestvariant)
+    return lowestvariant
 
 #Method done by Niklas
 def create_flower_model(ocpn,ots):

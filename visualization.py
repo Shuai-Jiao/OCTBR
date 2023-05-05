@@ -177,7 +177,7 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
         row3 = ['','Restricted model']
         #print('@@@@@@',PNpm4py)
         flower = Flowermodel(PNpm4py[i])
-        restrict = Restrictedmodel(PNpm4py[i],ELpm4py[row[i]])
+        restrict = PNtranslate_OCPA2PM4PY(Restrictedmodel(ELocpa[row[i]]))
         #print('PNpm4py-----',PNpm4py)
         #Now is different to @@@@
         #print('Flower:',flower,"\n restrict",restrict,'\n model:',ELpm4py[row[i]])

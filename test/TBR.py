@@ -24,5 +24,5 @@ print(OCtokenbasedreplay(ocpn,ocel))'''
 #print(OCtokenbasedreplay(create_flower_model(ocpn,ocpn.object_types),ocel))
 
 #TBR for restricted model
-print(OC_Conformance(Restrictedmodel(PNtranslate_OCPA2PM4PY(ocpn),pm4py.read_ocel(path)),pm4py.read_ocel(path)))
-print(OCtokenbasedreplay(PNtranslate_PM4PY2OCPA(Restrictedmodel(PNtranslate_OCPA2PM4PY(ocpn),pm4py.read_ocel(path))),ocel))
+print(OC_Conformance(PNtranslate_OCPA2PM4PY(Restrictedmodel(ocel)),pm4py.read_ocel(path)))
+print(OCtokenbasedreplay(Restrictedmodel(ocel),ocel))
