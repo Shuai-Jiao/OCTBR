@@ -2,6 +2,6 @@ import sys
 sys.path.append(".")
 import visualization
 
-
-ocellist = ["/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/sample_logs/jsonocel/order_process.jsonocel"]
+prefix = "/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/sample_logs/"
+ocellist = ["jsonocel/order_process.jsonocel"]
 print(visualization.Drawcomparisontable(ocellist,[],automodel=True))

@@ -7,6 +7,7 @@ import matplotlib as mpl
 import numpy as np
 from ocpa.objects.oc_petri_net import obj as objocpa
 from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
+from ocpa.objects.log.importer.csv import factory as csv_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.algo.conformance.precision_and_fitness import evaluator as quality_measure_factory
 from multiset import *
@@ -16,7 +17,6 @@ from matplotlib import pyplot as plt
 import numpy as np
 from OCFM import OCEL2OCFM, OCPN2OCFM, EvalOCFM
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
-
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
 
@@ -160,8 +160,15 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     ELpm4py, ELocpa,PNocpa = {}, {},{}
     for ocel in ocellist:
         name = ocel.split('/')[-1]
-        row.append(name)       
-        ELocpa[name] = ocel_import_factory.apply(ocel)
+        row.append(name) 
+        
+        suffix = name.split('.')[-1]
+        if suffix == 'csv':
+            ELocpa[name] = csv_import_factory.apply(ocel)
+        elif suffix == 'jsonocel':
+            ELocpa[name] = ocel_import_factory.apply(ocel,variant="ocel_json")
+        elif suffix == 'xmlocel':
+            ELocpa[name] = ocel_import_factory.apply(ocel,variant="ocel_xml")     
         ELpm4py[name] = pm4py.read_ocel(ocel)
         
         PNocpa[name] = ocpn_discovery_factory.apply(ELocpa[name], parameters={"debug": False})
