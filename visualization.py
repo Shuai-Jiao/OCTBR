@@ -14,9 +14,10 @@ import tempfile
 from graphviz import Source
 from matplotlib import pyplot as plt
 import numpy as np
+from OCFM import OCEL2OCFM, OCPN2OCFM, EvalOCFM
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
 
-from token_based_replay import OC_Conformance
+from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
 
 def mergecells1(table, ix0, ix1):
@@ -146,9 +147,9 @@ def MergeOCFM(ocfmlist,variablity = False):
     return gviz
 
 def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
-    col = ['Ground truth','','Token-based replay','','Alignment','','Footprint-based method','']
+    col = ['Ground truth','','Flattened TBR','','OC TBR','','Alignment','','FP-based method','']
     col2 = []
-    for ele in range(4):
+    for ele in range(5):
         col2.extend(['fitness','precision'])
     col = ['','']+col
     col2 = ['','']+col2
@@ -168,9 +169,13 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
         ocpnlist = [PNocpa[name] for name in row]
     a = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist]
     #print('------',a)
-    PNpm4py = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist if type(pn)==objocpa.ObjectCentricPetriNet]
-    
+    PNpm4py = [PNtranslate_OCPA2PM4PY(pn) for pn in ocpnlist if type(pn)==objocpa.ObjectCentricPetriNet] 
     value = []
+
+    # Used for printing out
+    fitness = dict(dict())
+    precision = dict(dict())
+
     for i in range(len(row)):
         row1 = [row[i],'Origin']
         row2 = ['','Flower model']
@@ -183,7 +188,9 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
         #print('Flower:',flower,"\n restrict",restrict,'\n model:',ELpm4py[row[i]])
         #the flower model and restricted model are the same here
         #break
-        for j in range(4):
+        fitness[row[i]] = dict()
+        precision[row[i]] = dict()
+        for j in range(5):
             if j == 0:
                 prec1,_ = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
                 _,fit1 = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
@@ -195,6 +202,8 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 _,fit3 = quality_measure_factory.apply(ELocpa[row[i]], PNtranslate_PM4PY2OCPA(restrict))
                 row3.extend([fit3,prec3])
                 #print(i,fit1,prec1,fit2,prec2,fit3,prec3)
+                fitness[row[i]]['Ground Truth (o/f/r)'] = [fit1,fit2,fit3]
+                precision[row[i]]['Ground Truth (o/f/r)'] = [prec1,prec2,prec3]
             elif j == 1:
                 fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
                 _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
@@ -205,20 +214,31 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
                 _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
                 row3.extend([fit3,prec3])
+                fitness[row[i]]['Flattened TBR (o/f/r)'] = [fit1,fit2,fit3]
+                precision[row[i]]['Flattened TBR (o/f/r)'] = [prec1,prec2,prec3]
                 #print('token',i,fit1,prec1,fit2,prec2,fit3,prec3)
                 #print('token',i,OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True),\
                       #OC_Conformance(flower,ELpm4py[row[i]],'token-based',True),\
                       #OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True))
                 #print('token-----:',flower,restrict,PNpm4py[i],ELpm4py[row[i]])
             elif j == 2:
+                prec1, prec2, prec3 = np.nan, np.nan, np.nan
+                fit1 = OCtokenbasedreplay(PNocpa[row[i]],ELocpa[row[i]])
+                row1.extend([fit1,prec1])
+                fit2 = OCtokenbasedreplay(PNtranslate_PM4PY2OCPA(flower),ELocpa[row[i]])
+                row2.extend([fit2,prec2])
+                fit3 = OCtokenbasedreplay(PNtranslate_PM4PY2OCPA(restrict),ELocpa[row[i]])
+                row3.extend([fit3,prec3])
+                fitness[row[i]]['OC TBR (o/f/r)'] = [fit1,fit2,fit3]
+                precision[row[i]]['OC TBR (o/f/r)'] = [prec1,prec2,prec3]
+            elif j == 3:
                 try:
                     fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
                     _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
                     fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
                     _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
                     fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)
-                    _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)
-                    
+                    _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)                  
                 except:
                     fit1,fit2,fit3 = np.nan,np.nan,np.nan
                     prec1,prec2,prec3 = np.nan,np.nan,np.nan
@@ -227,7 +247,11 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 row1.extend([fit1,prec1])
                 row2.extend([fit2,prec2])
                 row3.extend([fit3,prec3])
-            elif j == 3:
+                fitness[row[i]]['Flattened Alignment (o/f/r)'] = [fit1,fit2,fit3]
+                precision[row[i]]['Flattened Alignment (o/f/r)'] = [prec1,prec2,prec3]
+            elif j == 4:
+                fitness[row[i]]['FPB Method (o/f/r)'] = []
+                precision[row[i]]['FPB Method (o/f/r)'] = []
                 for k in range(3):
                     if k == 0:
                         model = PNpm4py[i]
@@ -244,7 +268,8 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                     fit,_,_ = EvalOCFM(ocfmlog,ocfmmodel)
                     _,prec,_ = EvalOCFM(ocfmlog,ocfmmodel)
                     currow.extend([fit,prec])
-                    
+                    fitness[row[i]]['FPB Method (o/f/r)'].append(fit)
+                    precision[row[i]]['FPB Method (o/f/r)'].append(prec)
         value.extend([row1,row2,row3])
 
     fig = plt.figure(figsize=(19,5))
@@ -268,6 +293,5 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     #tab.scale(1,2)
 
     #Collect the outputs
-    return [{'Discovered Model: ':row[i], 'fitness: ':row1[2*i], 'precision: ':row1[2*i+1],\
-      'Flower Model: ':row[i], 'fitness: ':row2[2*i], 'precision: ':row2[2*i+1],\
-        'Restricted Model: ':row[i], 'fitness: ':row3[2*i], 'precision: ':row3[2*i+1]} for i in range(len(row))]
+    return 'The fitness is: ' + ', '.join([str(fitness[row[i]]) for i in range(len(row))]) + \
+       '\nThe precision is: ' + ', '.join([str(precision[row[i]]) for i in range(len(row))])
