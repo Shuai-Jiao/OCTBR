@@ -19,6 +19,8 @@ from OCFM import OCEL2OCFM, OCPN2OCFM, EvalOCFM
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
+from pm4py.objects.ocel.util import extended_table
+import pandas as pd
 
 def mergecells1(table, ix0, ix1):
     ix0,ix1 = np.asarray(ix0), np.asarray(ix1)
@@ -161,15 +163,32 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     for ocel in ocellist:
         name = ocel.split('/')[-1]
         row.append(name) 
-        
+
+        #For different EL format, using different parsing method
         suffix = name.split('.')[-1]
         if suffix == 'csv':
-            ELocpa[name] = csv_import_factory.apply(ocel)
+            #CSV is the toughest problem, we have to do attribute mapping!
+            #However, pm4py and ocpa accepts different attribute names!!!
+            #The following mappings are the minimal mappings for EL parsing! Otherwise error!
+            if name == 'BPI2017-Final.csv':
+                object_types = ["application", "offer"]
+                attrmap1 = {"obj_names":object_types,
+                            "val_names":[],
+                            "act_name":"event_activity",
+                            "time_name":"event_timestamp",
+                            "sep":","}
+                attrmap2 = {'event_activity':'ocel:activity', 'event_timestamp':'ocel:timestamp', 'event_id':'ocel:eid'\
+                               ,'order':'ocel:type:order','application':'ocel:type:application'}
+            ELocpa[name] = csv_import_factory.apply(file_path = ocel, parameters = attrmap1)
+            table = pd.read_csv(ocel)
+            table = table.rename(columns=attrmap2)
+            ELpm4py[name] = extended_table.get_ocel_from_extended_table(table,None,parameters={})
         elif suffix == 'jsonocel':
             ELocpa[name] = ocel_import_factory.apply(ocel,variant="ocel_json")
+            ELpm4py[name] = pm4py.read_ocel(ocel)
         elif suffix == 'xmlocel':
             ELocpa[name] = ocel_import_factory.apply(ocel,variant="ocel_xml")     
-        ELpm4py[name] = pm4py.read_ocel(ocel)
+            ELpm4py[name] = pm4py.read_ocel(ocel)
         
         PNocpa[name] = ocpn_discovery_factory.apply(ELocpa[name], parameters={"debug": False})
     if automodel:
