@@ -7,7 +7,7 @@ from pm4py.visualization.common import gview
 from multiset import *
 
 from model import decomposeOCPN
-from visualization import MergeOCFM
+#from visualization import MergeOCFM
 
 def OCEL2OCFM(ocel):
     otlist = pm4py.ocel_get_object_types(ocel)
@@ -91,9 +91,9 @@ def Evaluation(ocel,ocpn,threshold = 0.05):
     ocfmlog = OCEL2OCFM(ocel)
     for ot in pm4py.ocel_get_object_types(ocel):
         ocfmlog[ot] = pm4py.filter_variants_by_coverage_percentage(ocfmlog[ot], threshold)
-    gviz1=MergeOCFM(ocfmmodel)
-    gviz2=MergeOCFM(ocfmlog)
-    gview.view(gviz1)
-    gview.view(gviz2)
+    #gviz1=MergeOCFM(ocfmmodel)
+    #gviz2=MergeOCFM(ocfmlog)
+    #gview.view(gviz1)
+    #gview.view(gviz2)
     result = EvalOCFM(ocfmlog,ocfmmodel)
     return result

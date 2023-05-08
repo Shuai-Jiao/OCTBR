@@ -15,12 +15,17 @@ import tempfile
 from graphviz import Source
 from matplotlib import pyplot as plt
 import numpy as np
-from OCFM import OCEL2OCFM, OCPN2OCFM, EvalOCFM
+from footprint_based_method import OCEL2OCFM, OCPN2OCFM, EvalOCFM
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
 from pm4py.objects.ocel.util import extended_table
 import pandas as pd
+from ocpa.objects.log.ocel import OCEL
+from ocpa.objects.log.variants.table import Table
+from ocpa.objects.log.variants.graph import EventGraph
+import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+import ocpa.objects.log.variants.util.table as table_utils
 
 def mergecells1(table, ix0, ix1):
     ix0,ix1 = np.asarray(ix0), np.asarray(ix1)
@@ -180,6 +185,16 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 attrmap2 = {'event_activity':'ocel:activity', 'event_timestamp':'ocel:timestamp', 'event_id':'ocel:eid'\
                                ,'order':'ocel:type:order','application':'ocel:type:application'}
             ELocpa[name] = csv_import_factory.apply(file_path = ocel, parameters = attrmap1)
+            #The under command ONLY remove ALL of the CERTAIN attributes!!!
+            #ELocpa[name].log.log.drop('event_start_timestamp', axis=1)
+            #If we don't remove the duplicate attrbute in the dataframe, bugs will\
+            #occur when we try to explode (flatten) the object ("event_object").
+            removeduplicate = ELocpa[name].log.log.loc[:,~ELocpa[name].log.log.columns.duplicated()]
+            noduplog = Table(removeduplicate, parameters = ELocpa[name].parameters)
+            nodupobj = obj_converter.apply(removeduplicate)
+            nodupgraph = EventGraph(table_utils.eog_from_log(noduplog))
+            ELocpa[name] = OCEL(noduplog, nodupobj, nodupgraph, ELocpa[name].parameters)
+            #print('---',ELocpa[name].log.log.columns)
             table = pd.read_csv(ocel)
             table = table.rename(columns=attrmap2)
             ELpm4py[name] = extended_table.get_ocel_from_extended_table(table,None,parameters={})
@@ -216,8 +231,10 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
         #break
         fitness[row[i]] = dict()
         precision[row[i]] = dict()
+        #weight = 'average'
+        weight = 'ratio'
         for j in range(5):
-            if j == 0:
+            if j == 0:                
                 prec1,_ = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
                 _,fit1 = quality_measure_factory.apply(ELocpa[row[i]], ocpnlist[i])
                 row1.extend([fit1,prec1])
@@ -231,14 +248,14 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 fitness[row[i]]['Ground Truth (o/f/r)'] = [fit1,fit2,fit3]
                 precision[row[i]]['Ground Truth (o/f/r)'] = [prec1,prec2,prec3]
             elif j == 1:
-                fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
-                _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True)
+                fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True,weight)
+                _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'token-based',True,weight)
                 row1.extend([fit1,prec1])
-                fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
-                _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True)
+                fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True,weight)
+                _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'token-based',True,weight)
                 row2.extend([fit2,prec2])
-                fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
-                _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True)
+                fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True,weight)
+                _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'token-based',True,weight)
                 row3.extend([fit3,prec3])
                 fitness[row[i]]['Flattened TBR (o/f/r)'] = [fit1,fit2,fit3]
                 precision[row[i]]['Flattened TBR (o/f/r)'] = [prec1,prec2,prec3]
@@ -259,12 +276,12 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
                 precision[row[i]]['OC TBR (o/f/r)'] = [prec1,prec2,prec3]
             elif j == 3:
                 try:
-                    fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
-                    _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True)
-                    fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
-                    _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True)
-                    fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)
-                    _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True)                  
+                    fit1,_ = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True,weight)
+                    _,prec1 = OC_Conformance(PNpm4py[i],ELpm4py[row[i]],'alignment',True,weight)
+                    fit2,_ = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True,weight)
+                    _,prec2 = OC_Conformance(flower,ELpm4py[row[i]],'alignment',True,weight)
+                    fit3,_ = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True,weight)
+                    _,prec3 = OC_Conformance(restrict,ELpm4py[row[i]],'alignment',True,weight)                  
                 except:
                     fit1,fit2,fit3 = np.nan,np.nan,np.nan
                     prec1,prec2,prec3 = np.nan,np.nan,np.nan
@@ -319,5 +336,5 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
     #tab.scale(1,2)
 
     #Collect the outputs
-    return 'The fitness is: ' + ', '.join([str(fitness[row[i]]) for i in range(len(row))]) + \
-       '\nThe precision is: ' + ', '.join([str(precision[row[i]]) for i in range(len(row))])
+    return 'The fitness is: ' + ', '.join([row[i]+':'+str(fitness[row[i]]) for i in range(len(row))]) + \
+       '\nThe precision is: ' + ', '.join([row[i]+':'+str(precision[row[i]]) for i in range(len(row))])
