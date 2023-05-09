@@ -19,6 +19,7 @@ from footprint_based_method import OCEL2OCFM, OCPN2OCFM, EvalOCFM
 from model import decomposeOCPN, Restrictedmodel, Flowermodel
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
+from preprocessing import PreprocessCSV
 from pm4py.objects.ocel.util import extended_table
 import pandas as pd
 from ocpa.objects.log.ocel import OCEL
@@ -175,29 +176,8 @@ def Drawcomparisontable(ocellist,ocpnlist,automodel=True):
             #CSV is the toughest problem, we have to do attribute mapping!
             #However, pm4py and ocpa accepts different attribute names!!!
             #The following mappings are the minimal mappings for EL parsing! Otherwise error!
-            if name == 'BPI2017-Final.csv':
-                object_types = ["application", "offer"]
-                attrmap1 = {"obj_names":object_types,
-                            "val_names":[],
-                            "act_name":"event_activity",
-                            "time_name":"event_timestamp",
-                            "sep":","}
-                attrmap2 = {'event_activity':'ocel:activity', 'event_timestamp':'ocel:timestamp', 'event_id':'ocel:eid'\
-                               ,'order':'ocel:type:order','application':'ocel:type:application'}
-            ELocpa[name] = csv_import_factory.apply(file_path = ocel, parameters = attrmap1)
-            #The under command ONLY remove ALL of the CERTAIN attributes!!!
-            #ELocpa[name].log.log.drop('event_start_timestamp', axis=1)
-            #If we don't remove the duplicate attrbute in the dataframe, bugs will\
-            #occur when we try to explode (flatten) the object ("event_object").
-            removeduplicate = ELocpa[name].log.log.loc[:,~ELocpa[name].log.log.columns.duplicated()]
-            noduplog = Table(removeduplicate, parameters = ELocpa[name].parameters)
-            nodupobj = obj_converter.apply(removeduplicate)
-            nodupgraph = EventGraph(table_utils.eog_from_log(noduplog))
-            ELocpa[name] = OCEL(noduplog, nodupobj, nodupgraph, ELocpa[name].parameters)
-            #print('---',ELocpa[name].log.log.columns)
-            table = pd.read_csv(ocel)
-            table = table.rename(columns=attrmap2)
-            ELpm4py[name] = extended_table.get_ocel_from_extended_table(table,None,parameters={})
+            ELocpa[name] = PreprocessCSV(ocel,'ELocpa')
+            ELpm4py[name] = PreprocessCSV(ocel,'ELpm4py')
         elif suffix == 'jsonocel':
             ELocpa[name] = ocel_import_factory.apply(ocel,variant="ocel_json")
             ELpm4py[name] = pm4py.read_ocel(ocel)
