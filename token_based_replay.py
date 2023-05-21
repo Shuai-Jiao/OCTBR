@@ -71,16 +71,18 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         #Find out all the possible marking executed after silence
         #Build up possible places
         for pl1 in marking.keys():
-            #print('Silence successor',Findsilencesuccessor(pl1))
-            for pl2 in Findsilencesuccessor(pl1):
-                #Find out the possible object pair connected by the silence
-                for obj in marking[pl1]:
-                    if Findobject(ocel,obj).type == pl2.object_type:
-                        Initializemarking(possibleplace,pl2)
-                        possibleplace[pl2].add(obj)
-                        #possiblemarking.add(possibleplace)
+            
+            if len(marking[pl1])>0:
+                for pl2 in Findsilencesuccessor(pl1):
+                    #Find out the possible object pair connected by the silence
+                    for obj in marking[pl1]:
+                        if Findobject(ocel,obj).type == pl2.object_type:
+                            Initializemarking(possibleplace,pl2)
+                            possibleplace[pl2].add(obj)
+                            #possiblemarking.add(possibleplace)
+            #print('Silence successor',pl1,Findsilencesuccessor(pl1))
                              
-        #print(possibleplace.keys())
+        #print('Possibleplace',possibleplace.keys())
         for obj in event.omap:
             #Consider precondition
             missing = True
@@ -122,8 +124,6 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                         possibleplace[arc.source].remove(obj)
                         c += 1
                         missing = False
-                else:
-                    print('arc source',arc.source,possibleplace.keys())
 
             if missing:
                 m += 1
@@ -166,6 +166,7 @@ def Findsilencepredecessor(obj,ot,place,marking):
                 #a special case because no objects are initialized at there!
                 elif ia2.source.initial and ia2.source.object_type == ot:
                     return ia2.source
+                #Find the first satisfiable predecessor to make the algo deterministic
                 elif not Findsilencepredecessor(obj,ot,ia2.source,marking) is None:
                     return Findsilencepredecessor(obj,ot,ia2.source,marking)
                     
@@ -179,7 +180,8 @@ def Findsilencesuccessor(place):
             for oa2 in oa1.target.out_arcs:
                 #pairofplace.append((pl1,oa2.target))
                 posssucc.append(oa2.target)
-                posssucc + Findsilencesuccessor(oa2.target)
+                #print('oa2.target---',place.name,oa2.target,Findsilencesuccessor(oa2.target))
+                posssucc = posssucc + Findsilencesuccessor(oa2.target)
     return posssucc
 
 
