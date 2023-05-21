@@ -6,12 +6,13 @@ from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
 from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
+from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 
 
-
-path = "/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCFM/sample_logs/jsonocel/order_process.jsonocel"
+path = "/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/sample_logs/jsonocel/order_process.jsonocel"
 ocel = ocel_import_factory.apply(path)
 ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
+ocpn_vis_factory.save(ocpn_vis_factory.apply(ocpn), "./test/orderprocessPN.png")
 #print(Flowermodel(PNtranslate_OCPA2PM4PY(ocpn)))
 
 #TBR for flowermodel
@@ -19,10 +20,10 @@ ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
 print(OCtokenbasedreplay(PNtranslate_PM4PY2OCPA(Flowermodel(PNtranslate_OCPA2PM4PY(ocpn))),ocel))'''
 
 #TBR for origin model
-'''print(OC_Conformance(PNtranslate_OCPA2PM4PY(ocpn),pm4py.read_ocel(path)))
-print(OCtokenbasedreplay(ocpn,ocel))'''
+#print(OC_Conformance(PNtranslate_OCPA2PM4PY(ocpn),pm4py.read_ocel(path)))
+print(OCtokenbasedreplay(ocpn,ocel))
 #print(OCtokenbasedreplay(create_flower_model(ocpn,ocpn.object_types),ocel))
 
 #TBR for restricted model
-print(OC_Conformance(PNtranslate_OCPA2PM4PY(Restrictedmodel(ocel)),pm4py.read_ocel(path)))
-print(OCtokenbasedreplay(Restrictedmodel(ocel),ocel))
+'''print(OC_Conformance(PNtranslate_OCPA2PM4PY(Restrictedmodel(ocel)),pm4py.read_ocel(path)))
+print(OCtokenbasedreplay(Restrictedmodel(ocel),ocel))'''

@@ -1,6 +1,7 @@
 import pm4py
 from ocpa.objects.oc_petri_net import obj as objocpa
 from multiset import *
+from typing import List, Dict, Set
 
 #ONLY accept pm4py format!
 def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "average"):
@@ -43,7 +44,7 @@ def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "
         return fitness
 
 #Based on OCPA    
-def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
+def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
     #start with the initial
     if type(ocpn) is not objocpa.ObjectCentricPetriNet:
         raise ValueError("The ocpn format is not well-defined in ocpa")
@@ -51,6 +52,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
     acttrans = []
     p,m,c,r = 0,0,0,0
     #the tokens(objects) in the corresponding place
+    #Multiset stores the set of string of the object ID
     marking: Dict[objocpa.Place,Multiset]
     marking = {}
     for eventID in eventdict:
@@ -59,6 +61,30 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
         #tr could be None! if there is no such transition in the petri net
         if tr is None:
             continue
+        #Check whether for the current marking, any silence is actived
+        #possiblemarking : Set[Dict[objocpa.Place,Multiset]]
+        # A list of pair of the place which connected by the silence
+        possibleplace = {}
+        #The possible successor of the silence 
+        #possiblemarking = set()
+
+        #Find out all the possible marking executed after silence
+        #Build up possible places
+        for pl1 in marking.keys():
+            posssucc = []
+            for oa1 in pl1.out_arcs:
+                if oa1.target.silent:
+                    for oa2 in oa1.target.out_arcs:
+                        #pairofplace.append((pl1,oa2.target))
+                        posssucc.append(oa2.target)
+            for pl2 in posssucc:
+                #Find out the possible object pair connected by the silence
+                for obj in marking[pl1]:
+                    if Findobject(ocel,obj).type == pl2.object_type:
+                        Initializemarking(possibleplace,pl2)
+                        possibleplace[pl2].add(obj)
+                        #possiblemarking.add(possibleplace)
+                             
         for obj in event.omap:
             #Consider precondition
             missing = True
@@ -77,6 +103,16 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
                     marking[arc.source].remove(obj)
                     missing = False
                     c += 1
+                #Check whether any possible marking triggered by silence meet the condition
+                elif arc.source in possibleplace.keys() and obj in possibleplace[arc.source]:
+                    #print(marking[Findsilencepredecessor(obj,arc.source,marking)], obj,'---',Findsilencepredecessor(obj,arc.source,marking),arc.source.name)
+                    marking[Findsilencepredecessor(obj,arc.source,marking)].remove(obj)
+                    marking[arc.source].add(obj)
+                    possibleplace[arc.source].remove(obj)
+                    c += 1
+                    p += 1
+                    missing = False
+
             if missing:
                 m += 1
                 c += 1
@@ -99,9 +135,21 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=False):
                     c += 1
     for k in marking.keys():
             r += len(marking[k])
-    #print('pcmr:',p,c,m,r,p+m,c+r)
+    print('pcmr:',p,c,m,r,p+m,c+r)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
+#Find out the predecessing place that contains token and linked by silence
+def Findsilencepredecessor(obj,place,marking):
+    for ia1 in place.in_arcs:
+        if ia1.source.silent:
+            for ia2 in ia1.source.in_arcs:
+                #The object should be in the predecessor! Because there could be\
+                #multiple predecessors, we have to find the one contain the object!
+                if ia2.source in marking.keys() and obj in marking[ia2.source]:
+                    return ia2.source
+    return "No return"
+    
+                
 def findnextnotsilent(ocpn,silence):
     nextnonsilence = []
     for ele0 in silence.out_arcs:
