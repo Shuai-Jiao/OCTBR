@@ -71,13 +71,8 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         #Find out all the possible marking executed after silence
         #Build up possible places
         for pl1 in marking.keys():
-            posssucc = []
-            for oa1 in pl1.out_arcs:
-                if oa1.target.silent:
-                    for oa2 in oa1.target.out_arcs:
-                        #pairofplace.append((pl1,oa2.target))
-                        posssucc.append(oa2.target)
-            for pl2 in posssucc:
+            #print('Silence successor',Findsilencesuccessor(pl1))
+            for pl2 in Findsilencesuccessor(pl1):
                 #Find out the possible object pair connected by the silence
                 for obj in marking[pl1]:
                     if Findobject(ocel,obj).type == pl2.object_type:
@@ -85,17 +80,26 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                         possibleplace[pl2].add(obj)
                         #possiblemarking.add(possibleplace)
                              
+        #print(possibleplace.keys())
         for obj in event.omap:
             #Consider precondition
             missing = True
+            objecttype = Findobject(ocel,obj).type
             for arc in tr.in_arcs:
                 #Check whether the marking is initialized
                 Initializemarking(marking,arc.source)
+                silencepredecessor = Findsilencepredecessor(obj,objecttype,arc.source,marking)
                 #first determine whether the start place for the corr. type is
-                if arc.source.initial and arc.source.object_type == Findobject(ocel,obj).type:
+                if arc.source.initial and arc.source.object_type == objecttype:
                     missing = False
                     p += 1
                     c += 1
+                #Initial places are not considered in the possible silence predecessors!!!\
+                #So we have to discuss it seperately
+                elif (not silencepredecessor is None) and silencepredecessor.initial:
+                    p += 1
+                    c += 1
+                    missing = False
                 #discuss the case the token exist for firing
                 elif obj in marking[arc.source]:
                     #fire all possible token
@@ -104,14 +108,22 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     missing = False
                     c += 1
                 #Check whether any possible marking triggered by silence meet the condition
-                elif arc.source in possibleplace.keys() and obj in possibleplace[arc.source]:
+                elif arc.source in possibleplace.keys():
                     #print(marking[Findsilencepredecessor(obj,arc.source,marking)], obj,'---',Findsilencepredecessor(obj,arc.source,marking),arc.source.name)
-                    marking[Findsilencepredecessor(obj,arc.source,marking)].remove(obj)
-                    marking[arc.source].add(obj)
-                    possibleplace[arc.source].remove(obj)
-                    c += 1
-                    p += 1
-                    missing = False
+                    #print(Findsilencepredecessor(obj,arc.source,marking))
+                    #Consider the case that the predecessor is an initial place
+                    if silencepredecessor.initial:
+                        p += 1
+                        c += 1
+                        missing = False
+                    elif obj in possibleplace[arc.source]:
+                        marking[silencepredecessor].remove(obj)
+                        #marking[arc.source].add(obj)
+                        possibleplace[arc.source].remove(obj)
+                        c += 1
+                        missing = False
+                else:
+                    print('arc source',arc.source,possibleplace.keys())
 
             if missing:
                 m += 1
@@ -122,12 +134,12 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                 #instance = Findobject(ocel,obj)
                 #It has to be set for the two if-statement
                 
-                if arc.target.object_type == Findobject(ocel,obj).type:
+                if arc.target.object_type == objecttype:
                     Initializemarking(marking,arc.target)
                     marking[arc.target].add(obj)
                     p += 1
                 #consider the end place
-                if arc.target.final and arc.target.object_type == Findobject(ocel,obj).type:
+                if arc.target.final and arc.target.object_type == objecttype:
                     #print(arc.target.object_type,obj)
                     #Initializemarking(marking,arc.target)
                     if obj in marking[arc.target]:
@@ -135,11 +147,14 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     c += 1
     for k in marking.keys():
             r += len(marking[k])
+            if len(marking[k]) >= 1:
+                print(k, marking[k])
     print('pcmr:',p,c,m,r,p+m,c+r)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
 #Find out the predecessing place that contains token and linked by silence
-def Findsilencepredecessor(obj,place,marking):
+#ot is the object type of the object! not the object type of the place
+def Findsilencepredecessor(obj,ot,place,marking):
     for ia1 in place.in_arcs:
         if ia1.source.silent:
             for ia2 in ia1.source.in_arcs:
@@ -147,9 +162,27 @@ def Findsilencepredecessor(obj,place,marking):
                 #multiple predecessors, we have to find the one contain the object!
                 if ia2.source in marking.keys() and obj in marking[ia2.source]:
                     return ia2.source
-    return "No return"
+                #Consider the case that the predecessor is initial marking. This is\
+                #a special case because no objects are initialized at there!
+                elif ia2.source.initial and ia2.source.object_type == ot:
+                    return ia2.source
+                elif not Findsilencepredecessor(obj,ot,ia2.source,marking) is None:
+                    return Findsilencepredecessor(obj,ot,ia2.source,marking)
+                    
     
-                
+def Findsilencesuccessor(place):
+    #pl = place
+    #while any([oa.target.silent for oa in pl.out_arcs]):
+    posssucc = []
+    for oa1 in place.out_arcs:
+        if oa1.target.silent:
+            for oa2 in oa1.target.out_arcs:
+                #pairofplace.append((pl1,oa2.target))
+                posssucc.append(oa2.target)
+                posssucc + Findsilencesuccessor(oa2.target)
+    return posssucc
+
+
 def findnextnotsilent(ocpn,silence):
     nextnonsilence = []
     for ele0 in silence.out_arcs:
