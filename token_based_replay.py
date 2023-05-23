@@ -57,6 +57,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
     marking = {}
     initialplace = {}
     tokenmap = set()
+    semiinitialplace = set()
     #Build up the initial places of each ot
     for ot in ocpn.object_types:
         initialplace[ot] = set()
@@ -65,6 +66,15 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         if pl.initial:
             initialplace[pl.object_type].add(pl)
     #print(initialplace)
+    #One object could produce multiple tokens!!!
+    #Find out the silence successors for the initial states in case of\
+    #duplicate objects starts without initialized marking!
+    for key in initialplace.keys():
+        for initpl in initialplace[key]:
+            #For set and list, again you forget A = A+B!!! A+B is wrong!
+            semiinitialplace = semiinitialplace|set(Findsilencesuccessor(initpl))
+            #print('!!',initpl,Findsilencesuccessor(initpl))
+    #print('---',semiinitialplace)
 
     for eventID in eventdict:
         event = eventdict[eventID]
@@ -101,10 +111,14 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
             #Consider precondition
             missing = True
             objecttype = ocel.obj.raw.objects[obj].type
-            #If the object is the first time occur, then initialize token at start place
+            #If the object is the first time occur, then initialize token at start place\
+            #Besides, we have to add on all possible silence successors
             if not obj in tokenmap:
-                for pl in initialplace[objecttype]:
-                    marking[pl].add(obj)
+                for pl1 in initialplace[objecttype]:
+                    marking[pl1].add(obj)
+                    for pl2 in Findsilencesuccessor(pl1):
+                        possibleplace[pl2].add(obj)
+                        #print('~~~',pl2.name)
                 tokenmap.add(obj)
                 p += 1
             #print('----',tokenmap)
@@ -140,10 +154,16 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     possibleplace[arc.source].remove(obj)
                     c += 1
                     missing = False
+                #Consider we are now at the semi initial places, then initialize the missing token!
+                elif arc.source in semiinitialplace:
+                    p += 1
+                    c += 1
+                    missing = False
 
             if missing:
                 m += 1
                 c += 1
+                #print('---',tr.name)
             #Consider effect
             for arc in tr.out_arcs:
                 #use the obj's name to find the obj
@@ -183,8 +203,8 @@ def Findsilencepredecessor(obj,ot,place,marking):
                 #Find the first satisfiable predecessor to make the algo deterministic
                 elif not Findsilencepredecessor(obj,ot,ia2.source,marking) is None:
                     return Findsilencepredecessor(obj,ot,ia2.source,marking)
-                """elif ia2.source.initial and ia2.source.object_type == ot:
-                    return ia2.source"""
+                '''elif ia2.source.initial and ia2.source.object_type == ot:
+                    return ia2.source'''
                     
     
 def Findsilencesuccessor(place):
