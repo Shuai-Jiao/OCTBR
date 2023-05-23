@@ -32,33 +32,35 @@ def ParsingCSV(csvpath, parameters=None):
 def PreprocessCSV(path,format = 'ELocpa'):
     name = path.split('/')[-1]
     if name == 'BPI2017-Final.csv':
-        object_types = ["application", "offer"]
-        attrmap1 = {"obj_names":object_types,
-                    "val_names":[],
-                    "act_name":"event_activity",
-                    "time_name":"event_timestamp",
-                    "sep":","}
-        attrmap2 = {'event_activity':'ocel:activity', 'event_timestamp':'ocel:timestamp', 'event_id':'ocel:eid'\
-                        ,'order':'ocel:type:order','application':'ocel:type:application'}
-        ELocpa = csv_import_factory.apply(file_path = path, parameters = attrmap1)
-        #The under command ONLY remove ALL of the CERTAIN attributes!!!
-        #ELocpa[name].log.log.drop('event_start_timestamp', axis=1)
-        #If we don't remove the duplicate attrbute in the dataframe, bugs will\
-        #occur when we try to explode (flatten) the object ("event_object").
-        removeduplicate = ELocpa.log.log.loc[:,~ELocpa.log.log.columns.duplicated()]
-        noduplog = Table(removeduplicate, parameters = ELocpa.parameters)
-        nodupobj = obj_converter.apply(removeduplicate)
-        nodupgraph = EventGraph(table_utils.eog_from_log(noduplog))
-        ELocpa = OCEL(noduplog, nodupobj, nodupgraph, ELocpa.parameters)
-        #print('---',ELocpa[name].log.log.columns)
-        table = pd.read_csv(path)
-        table = table.rename(columns=attrmap2)
-        ELpm4py = extended_table.get_ocel_from_extended_table(table,None,parameters={})
+        if format == 'ELocpa':
+            object_types = ["application", "offer"]
+            attrmap1 = {"obj_names":object_types,
+                        "val_names":[],
+                        "act_name":"event_activity",
+                        "time_name":"event_timestamp",
+                        "sep":","}
+            ELocpa = csv_import_factory.apply(file_path = path, parameters = attrmap1)
+            #The under command ONLY remove ALL of the CERTAIN attributes!!!
+            #ELocpa[name].log.log.drop('event_start_timestamp', axis=1)
+            #If we don't remove the duplicate attrbute in the dataframe, bugs will\
+            #occur when we try to explode (flatten) the object ("event_object").
+            '''removeduplicate = ELocpa.log.log.loc[:,~ELocpa.log.log.columns.duplicated()]
+            noduplog = Table(removeduplicate, parameters = ELocpa.parameters)
+            nodupobj = obj_converter.apply(removeduplicate)
+            nodupgraph = EventGraph(table_utils.eog_from_log(noduplog))
+            ELocpa = OCEL(noduplog, nodupobj, nodupgraph, ELocpa.parameters)'''
+            return ELocpa
+            #print('---',ELocpa[name].log.log.columns)
+        elif format == 'ELpm4py':
+            attrmap2 = {'event_activity':'ocel:activity', 'event_timestamp':'ocel:timestamp', 'event_id':'ocel:eid'\
+                            ,'order':'ocel:type:order','application':'ocel:type:application'}            
+            table = pd.read_csv(path)
+            table = table.rename(columns=attrmap2)
+            ELpm4py = extended_table.get_ocel_from_extended_table(table,None,parameters={})
+            return ELpm4py
     else:
-        ELocpa = csv_import_factory.apply(path)
-        ELpm4py = pm4py.read_ocel(path)
+        if format == 'ELocpa':
+            return csv_import_factory.apply(path)
+        elif format == 'ELpm4py':
+            return pm4py.read_ocel(path)
 
-    if format == 'ELocpa':
-        return ELocpa
-    elif format == 'ELpm4py':
-        return ELpm4py
