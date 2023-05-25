@@ -4,9 +4,9 @@ from model import Flowermodel, create_flower_model, Restrictedmodel
 from preprocessing import PreprocessCSV
 import pm4py
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA
+from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
-from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 
 

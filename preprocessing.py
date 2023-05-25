@@ -64,3 +64,23 @@ def PreprocessCSV(path,format = 'ELocpa'):
         elif format == 'ELpm4py':
             return pm4py.read_ocel(path)
 
+#Solve the syntax error of the object types of 'o2c','p2p','recruiting','running-example',\
+#and 'transfer_order'.
+#prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"
+#suffixcsv = ".csv"
+#storedpath = [path+'processed' for path in pathlist]
+def solve_ot_syntaxerror(path,storedpath):
+    df = pd.read_csv(path)
+    object_types = [ele.replace("ocel:type:",'') for ele in list(df.columns) if 'ocel:type:' in ele]
+    rename = {}
+    for ot in [obj for obj in df.columns if 'ocel:type:' in obj]:
+        rename[ot] = ot.replace("ocel:type:",'')
+    df.rename(columns=rename,inplace=True)
+    df.to_csv(storedpath)
+    attrmap = {"obj_names":object_types,
+                            "val_names":[],
+                            "act_name":'ocel:activity',
+                            "time_name":'ocel:timestamp',
+                            "sep":","}
+    ocel = csv_import_factory.apply(file_path = storedpath,parameters = attrmap)
+    return ocel
