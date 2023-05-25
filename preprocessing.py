@@ -44,6 +44,8 @@ def PreprocessCSV(path,format = 'ELocpa'):
             #ELocpa[name].log.log.drop('event_start_timestamp', axis=1)
             #If we don't remove the duplicate attrbute in the dataframe, bugs will\
             #occur when we try to explode (flatten) the object ("event_object").
+            #Now it doesn't need! because we already optimized the algo of OCTBR, which\
+            #doesn't need to traversal all the objects now!
             '''removeduplicate = ELocpa.log.log.loc[:,~ELocpa.log.log.columns.duplicated()]
             noduplog = Table(removeduplicate, parameters = ELocpa.parameters)
             nodupobj = obj_converter.apply(removeduplicate)
@@ -64,17 +66,18 @@ def PreprocessCSV(path,format = 'ELocpa'):
         elif format == 'ELpm4py':
             return pm4py.read_ocel(path)
 
-#Solve the syntax error of the object types of 'o2c','p2p','recruiting','running-example',\
+#Solve the syntax error of the object types of 'github_pm4py','o2c','p2p','recruiting','running-example',\
 #and 'transfer_order'.
+#github_pm4py has ':' in between the attribute name!!! which have to be replaced.
 #prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"
 #suffixcsv = ".csv"
 #storedpath = [path+'processed' for path in pathlist]
 def solve_ot_syntaxerror(path,storedpath):
     df = pd.read_csv(path)
-    object_types = [ele.replace("ocel:type:",'') for ele in list(df.columns) if 'ocel:type:' in ele]
+    object_types = [ele.replace("ocel:type:",'').replace(":","_") for ele in list(df.columns) if 'ocel:type:' in ele]
     rename = {}
     for ot in [obj for obj in df.columns if 'ocel:type:' in obj]:
-        rename[ot] = ot.replace("ocel:type:",'')
+        rename[ot] = ot.replace("ocel:type:",'').replace(":","_") 
     df.rename(columns=rename,inplace=True)
     df.to_csv(storedpath)
     attrmap = {"obj_names":object_types,
