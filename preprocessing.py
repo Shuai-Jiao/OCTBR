@@ -10,6 +10,11 @@ from ocpa.objects.log.variants.graph import EventGraph
 import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 from ocpa.objects.log.importer.csv import factory as csv_import_factory
+from ocpa.objects.log.ocel import OCEL
+from ocpa.objects.log.variants.table import Table
+from ocpa.objects.log.variants.graph import EventGraph
+import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+import ocpa.objects.log.variants.util.table as table_utils
 
 def ParsingCSV(csvpath, parameters=None):
     csvlog = pd.read_csv(csvpath,sep=';')
@@ -87,3 +92,7 @@ def solve_ot_syntaxerror(path,storedpath):
                             "sep":","}
     ocel = csv_import_factory.apply(file_path = storedpath,parameters = attrmap)
     return ocel
+
+#get an OCPA ocel
+def create_training_set(ocel):
+    

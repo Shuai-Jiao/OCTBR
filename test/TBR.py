@@ -11,6 +11,7 @@ from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 
 
 path = "/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/sample_logs/jsonocel/order_process.jsonocel"
+
 ocel = ocel_import_factory.apply(path)
 ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
 ocpn_vis_factory.save(ocpn_vis_factory.apply(ocpn), "./test/orderprocessPN.png")
