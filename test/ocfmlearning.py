@@ -1,7 +1,7 @@
 import sys
 sys.path.append(".")
 from footprint_based_method import OCEL2OCFM, OCPN2OCFM, Learningweight, EvalOCFM
-from preprocessing import solve_ot_syntaxerror
+from preprocessing import solve_ot_syntaxerror, create_training_set
 from translation import PNtranslate_OCPA2PM4PY
 from model import decomposeOCPN
 from ocpa.objects.log.importer.csv import factory as csv_import_factory
@@ -25,5 +25,7 @@ ocpnocpa = ocpn_discovery_factory.apply(ocelocpa, parameters={"debug": False})
 ocpnpm4py = PNtranslate_OCPA2PM4PY(ocpnocpa)
 #print(EvalOCFM(OCEL2OCFM(ocel),OCPN2OCFM(decomposeOCPN(ocpnpm4py))))
 print('start learning----ß')
+traininglist = create_training_set(ocelocpa)
+for 
 Learningweight(ocelocpa,OCEL2OCFM(ocel),OCPN2OCFM(decomposeOCPN(ocpnpm4py)))
 

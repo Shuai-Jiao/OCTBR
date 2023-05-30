@@ -1,5 +1,7 @@
 from pm4py.objects.petri_net import obj as objpm4py
 from ocpa.objects.oc_petri_net import obj as objocpa
+from ocpa.objects.log.exporter.ocel.factory import apply as ocpaexporter
+import pm4py
 from multiset import *
 
 def Activityvariability(act,net):
@@ -179,6 +181,11 @@ def PNMatching(ele,ocpn,ot=None):
     #print(type(ele),ele.name,ele.label)
     raise ValueError("No correspondence found")
     return None
+
+# convert the ocel first to json, then to pm4py ocel
+def ELtranslate_OCPA2PM4PY(ocel,export_path):
+    ocpaexporter(ocel,export_path)
+    return pm4py.read_ocel(export_path)
 
 def PNtranslate_PM4PY2OCPA(ocpn):
     ocpapn = objocpa.ObjectCentricPetriNet()

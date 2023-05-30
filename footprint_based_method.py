@@ -9,8 +9,9 @@ from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.algo.conformance.precision_and_fitness import evaluator as quality_measure_factory
 from ocpa.objects.log.importer.csv import factory as csv_import_factory
 import sympy as sp
-
+from preprocessing import create_training_set
 from model import decomposeOCPN
+from translation import ELtranslate_OCPA2PM4PY
 #from visualization import MergeOCFM
 
 def OCEL2OCFM(ocel):
@@ -94,40 +95,47 @@ def EvalbyOCFM(ocel,parameters=None):
     else:
         raise ValueError("Parameter configuration is not done so far")
 
-
-def Learningweight(ocel_ocpa,logocfm,modelocfm,epoch=1,rate=0.2,learning='learn_weight'):
-    ocpn = ocpn_discovery_factory.apply(ocel_ocpa, parameters={"debug": False})
-    tarprec, tarfit = quality_measure_factory.apply(ocel_ocpa, ocpn)
-    #Initialize symbolic variables for sympy calculation
+# the learningweight should receive a training data and return the weight of each relation
+# input activity to avoid non-occurred relation
+def Learningweight(ocel_list,activities,epoch=1,rate=0.2,learning='learn_weight'):
+    # Initialize symbolic variables for sympy calculation
     fitnesssymweight = {}
     precisionsymweight = {}
     fitnessweightderivative = {}
     precisionweightderivative = {}
-    for ot,ocfm in logocfm.items():
-        activities = sorted(list(set(activities)|set(ocfm['activities'])))
-    weightkey = list(itertools.product(activities,activities))
-    for i,w in enumerate(weightkey):
+    # To ensure the order of the relation
+    activities = sorted(activities)
+    relation_pair = list(itertools.product(activities,activities))
+    for i,w in enumerate(relation_pair):
         print('create variables------')
+        #the weights should not be symetric
         fitnesssymweight[w] = sp.symbols('w_'+str(i))
         precisionsymweight[w] = sp.symbols('w_'+str(i))
-    nonconflicttotal, conform, _ = CompareOCFM(logocfm,modelocfm,fitnesssymweight)
-    predfit = conform/(nonconflicttotal+1)
-    print('Loss fct-----')
-    difffit = Lossfunction(predfit,tarfit) 
-    nonconflicttotal, conform, _ = CompareOCFM(modelocfm,logocfm,precisionsymweight)
-    predprec = conform/(nonconflicttotal+1)
-    diffprec = Lossfunction(predprec,tarprec) 
-    print('perform differentiation-----')
-    for i,w in enumerate(weightkey):
-        fitnessweightderivative[w] = sp.diff(difffit,fitnesssymweight[w])
-        precisionweightderivative[w] = sp.diff(diffprec,precisionsymweight[w])
-    #perform gradient descent
-    for _ in range(epoch):
-        print('epoch start-----')
-        #update the weight (from symbolic value to symbolic expression)
-        for w in enumerate(weightkey):
-            fitnesssymweight[w] += rate*fitnessweightderivative[w]
-            precisionsymweight[w] += rate*precisionweightderivative[w]
+    for ocel in ocel_list:
+        ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
+        tarprec, tarfit = quality_measure_factory.apply(ocel, ocpn)
+        #BUT the ocel is in ocpa! not in pm4py!
+        logocfm = OCEL2OCFM(ELtranslate_OCPA2PM4PY(ocel,'./sample_logs/jsonocel/intermediate.jsonocel'))
+        modelocfm = OCPN2OCFM(decomposeOCPN(ocpn))
+        nonconflicttotal, conform, _ = CompareOCFM(logocfm,modelocfm,fitnesssymweight)
+        predfit = conform/(nonconflicttotal+1)
+        print('Loss fct-----')
+        difffit = Lossfunction(predfit,tarfit) 
+        nonconflicttotal, conform, _ = CompareOCFM(modelocfm,logocfm,precisionsymweight)
+        predprec = conform/(nonconflicttotal+1)
+        diffprec = Lossfunction(predprec,tarprec) 
+        print('perform differentiation-----')
+        for i,w in enumerate(relation_pair):
+            fitnessweightderivative[w] = sp.diff(difffit,fitnesssymweight[w])
+            precisionweightderivative[w] = sp.diff(diffprec,precisionsymweight[w])
+        #perform gradient descent
+        for _ in range(epoch):
+            print('epoch start-----')
+            #update the weight (from symbolic value to symbolic expression)
+            for w in enumerate(relation_pair):
+                fitnesssymweight[w] += rate*fitnessweightderivative[w]
+                precisionsymweight[w] += rate*precisionweightderivative[w]
+    return fitnesssymweight, precisionsymweight
 
 def Lossfunction(pred,tar,variant='squared error'):
     if variant == 'squared error':

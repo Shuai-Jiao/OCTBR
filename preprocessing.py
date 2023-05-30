@@ -15,6 +15,8 @@ from ocpa.objects.log.variants.table import Table
 from ocpa.objects.log.variants.graph import EventGraph
 import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
+import random
+from itertools import chain
 
 def ParsingCSV(csvpath, parameters=None):
     csvlog = pd.read_csv(csvpath,sep=';')
@@ -93,6 +95,51 @@ def solve_ot_syntaxerror(path,storedpath):
     ocel = csv_import_factory.apply(file_path = storedpath,parameters = attrmap)
     return ocel
 
-#get an OCPA ocel
-def create_training_set(ocel):
-    
+# get an OCPA ocel
+# return a set of packed ocels
+# ? solve crossing problem if too few data
+# 
+def create_training_set(ocel,fraction=0.1,iteration=10):
+    var = ocel.process_executions 
+    # remove duplicates
+    var = list(set(var))
+    #determine whether enough data exist
+    if fraction*len(var) < 1:
+        raise ValueError("Not enough variants for training")
+    if fraction*len(var)/iteration < 1:
+        raise ValueError("Not enough process for iteration")
+    trainingID = random.sample(var,len(var)*fraction)
+    # seperate the log
+    num = len(var)//iteration
+    # extract the log 
+    traininglist = []
+    for i in range(iteration):
+        logset = []
+        offset = i*num
+        #index = i*num+j
+        processes = [trainingID[offset+i] for i in range(num)]
+        aggregateprocess = list(chain(*processes))
+        filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(aggregateprocess)]
+        #convert to ocel format
+        log = Table(filteredlog, parameters = ocel.parameters)
+        obj = obj_converter.apply(filteredlog)
+        graph = EventGraph(table_utils.eog_from_log(log))
+        logset.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(logset)
+    # pack in the rest process     
+    restnum = len(var)%iteration
+    if restnum > 0:
+        #trainingID = trainingID[-restnum:]
+        logset = []
+        offset = num*iteration
+        processes = [trainingID[offset+i] for i in range(restnum)]
+        aggregateprocess = list(chain(*processes))
+        filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(aggregateprocess)]
+        #convert to ocel format
+        log = Table(filteredlog, parameters = ocel.parameters)
+        obj = obj_converter.apply(filteredlog)
+        graph = EventGraph(table_utils.eog_from_log(log))
+        logset.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(logset)
+
+    return traininglist
