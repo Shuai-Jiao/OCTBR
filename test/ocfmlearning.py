@@ -25,7 +25,10 @@ ocpnocpa = ocpn_discovery_factory.apply(ocelocpa, parameters={"debug": False})
 ocpnpm4py = PNtranslate_OCPA2PM4PY(ocpnocpa)
 #print(EvalOCFM(OCEL2OCFM(ocel),OCPN2OCFM(decomposeOCPN(ocpnpm4py))))
 print('start learning----ß')
+#print('variants in ocel:----',ocelocpa.process_executions,len(ocelocpa.process_executions))
 traininglist = create_training_set(ocelocpa)
-for 
-Learningweight(ocelocpa,OCEL2OCFM(ocel),OCPN2OCFM(decomposeOCPN(ocpnpm4py)))
+'''for ocel in traininglist:
+    print('number of variants:',len(ocel.process_executions),'\n------',ocel.process_executions)'''
+Learningweight(traininglist,list(ocelocpa.obj.activities))
+
 

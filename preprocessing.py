@@ -16,6 +16,7 @@ from ocpa.objects.log.variants.graph import EventGraph
 import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 import random
+import math
 from itertools import chain
 
 def ParsingCSV(csvpath, parameters=None):
@@ -98,23 +99,24 @@ def solve_ot_syntaxerror(path,storedpath):
 # get an OCPA ocel
 # return a set of packed ocels
 # ? solve crossing problem if too few data
-# 
-def create_training_set(ocel,fraction=0.1,iteration=10):
+# Like p2p ocel, it has 12538 process executions! And even 100 process executions\
+# would be too difficult for context_and_binding to learn!!! So we set fraction to 0.01 by default
+def create_training_set(ocel,fraction=0.01,iteration=10):
     var = ocel.process_executions 
     # remove duplicates
-    var = list(set(var))
+    var = list(var)
     #determine whether enough data exist
     if fraction*len(var) < 1:
         raise ValueError("Not enough variants for training")
     if fraction*len(var)/iteration < 1:
         raise ValueError("Not enough process for iteration")
-    trainingID = random.sample(var,len(var)*fraction)
+    trainingID = random.sample(var,math.ceil(len(var)*fraction))
     # seperate the log
-    num = len(var)//iteration
+    num = len(trainingID)//iteration
     # extract the log 
     traininglist = []
     for i in range(iteration):
-        logset = []
+        #logset = []
         offset = i*num
         #index = i*num+j
         processes = [trainingID[offset+i] for i in range(num)]
@@ -124,13 +126,13 @@ def create_training_set(ocel,fraction=0.1,iteration=10):
         log = Table(filteredlog, parameters = ocel.parameters)
         obj = obj_converter.apply(filteredlog)
         graph = EventGraph(table_utils.eog_from_log(log))
-        logset.append(OCEL(log, obj, graph, ocel.parameters))
-        traininglist.append(logset)
+        #logset.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(OCEL(log, obj, graph, ocel.parameters))
     # pack in the rest process     
-    restnum = len(var)%iteration
+    restnum = len(trainingID)%iteration
     if restnum > 0:
         #trainingID = trainingID[-restnum:]
-        logset = []
+        #logset = []
         offset = num*iteration
         processes = [trainingID[offset+i] for i in range(restnum)]
         aggregateprocess = list(chain(*processes))
@@ -139,7 +141,7 @@ def create_training_set(ocel,fraction=0.1,iteration=10):
         log = Table(filteredlog, parameters = ocel.parameters)
         obj = obj_converter.apply(filteredlog)
         graph = EventGraph(table_utils.eog_from_log(log))
-        logset.append(OCEL(log, obj, graph, ocel.parameters))
-        traininglist.append(logset)
+        #logset.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(OCEL(log, obj, graph, ocel.parameters))
 
     return traininglist
