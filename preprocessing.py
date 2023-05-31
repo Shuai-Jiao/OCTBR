@@ -18,6 +18,7 @@ import ocpa.objects.log.variants.util.table as table_utils
 import random
 import math
 from itertools import chain
+from collections import Counter
 
 def ParsingCSV(csvpath, parameters=None):
     csvlog = pd.read_csv(csvpath,sep=';')
@@ -101,18 +102,36 @@ def solve_ot_syntaxerror(path,storedpath):
 # ? solve crossing problem if too few data
 # Like p2p ocel, it has 12538 process executions! And even 100 process executions\
 # would be too difficult for context_and_binding to learn!!! So we set fraction to 0.01 by default
-def create_training_set(ocel,fraction=0.01,iteration=10):
+# **Increase the iteration to decrease the size of the generated ocel for training
+# **Decrease the fraction to increase the requirement of the generated ocel for filtering
+def create_training_set(ocel,fraction=None,iteration=None):
     var = ocel.process_executions 
     # remove duplicates
     var = list(var)
+    #remove the worthless process (either too short or too long)
+    # too short: no footprint will be detected, and the conform value is 0\
+    # which contributes nothing to the gradient descent. why p2p has 12223 processes\
+    # with length 1 ????
+    # too long: too expensive for using context and binding.
+    # there are processes with length over than 4800??? wtf?
+    filter_var = [ele for ele in var if len(ele)>3 and len(ele)<len(ocel.obj.activities)]
+    # discuss the default cases:
+    if fraction is None:
+        # ensure at least 10 could be used for training
+        fraction = max(0.25*len(filter_var)/len(var),10/len(var))    
     #determine whether enough data exist
-    if fraction*len(var) < 1:
+    if len(filter_var) < fraction*len(var):
         raise ValueError("Not enough variants for training")
-    if fraction*len(var)/iteration < 1:
+    trainingID = random.sample(filter_var,math.ceil(len(var)*fraction))
+    # by default 3 processes in a training log
+    if iteration is None:
+        iteration = len(trainingID)//3
+    if len(filter_var)/iteration < 1:
         raise ValueError("Not enough process for iteration")
-    trainingID = random.sample(var,math.ceil(len(var)*fraction))
     # seperate the log
     num = len(trainingID)//iteration
+    print('check the size of process----',len(var),Counter([len(ele) for ele in filter_var]),'\nlength of \
+          filtered variant:',len(filter_var),fraction*len(var),'number of activities---',len(ocel.obj.activities))
     # extract the log 
     traininglist = []
     for i in range(iteration):
@@ -121,8 +140,14 @@ def create_training_set(ocel,fraction=0.01,iteration=10):
         #index = i*num+j
         processes = [trainingID[offset+i] for i in range(num)]
         aggregateprocess = list(chain(*processes))
+        print('length of the process~~~',[len(ele) for ele in processes])
         filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(aggregateprocess)]
-        #convert to ocel format
+        # convert to ocel format
+        # the generated ocel could be too tricky for context&binding, if it contains\
+        # over 20 events...(considering too many objects!). So we have to limit the\
+        # size of the generated ocel. 
+        # BUT, if we only pack one process in an ocel, the model will be overfitting!!!\
+        # which contributes nothing to learning.
         log = Table(filteredlog, parameters = ocel.parameters)
         obj = obj_converter.apply(filteredlog)
         graph = EventGraph(table_utils.eog_from_log(log))

@@ -1,18 +1,13 @@
 {
     "ocel:global-log": {
         "ocel:attribute-names": [
-            "event_id",
-            "event_index"
+            "event_index",
+            "event_id"
         ],
         "ocel:object-types": [
-            "MBLNR",
-            "EBELN_EBELP",
-            "MATNR",
-            "BELNR_EBELN_EBELP",
-            "EBELN",
-            "MBLNR_ZEILE",
-            "BELNR",
-            "BANFN"
+            "order",
+            "item",
+            "delivery"
         ],
         "ocel:version": "1.0",
         "ocel:ordering": "timestamp"
@@ -25,277 +20,151 @@
     },
     "ocel:events": {
         "1": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "1998-04-17T00:00:00",
+            "ocel:activity": "Place Order",
+            "ocel:timestamp": "2022-10-20T22:14:11.864992",
             "ocel:omap": [
-                "4500004955_00010",
-                "4500004955"
+                "order33",
+                "item66",
+                "item67"
             ],
             "ocel:vmap": {
-                "event_id": 4378,
-                "event_index": 4378,
-                "start_timestamp": "1998-04-17 00:00:00"
+                "event_index": 211,
+                "event_id": 211,
+                "start_timestamp": "2022-10-20 22:14:11.864992"
             }
         },
         "2": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "1999-07-05T00:00:00",
+            "ocel:activity": "Confirm Order",
+            "ocel:timestamp": "2022-10-20T22:14:12.864992",
             "ocel:omap": [
-                "4500006769_00010",
-                "4500006769"
+                "order33",
+                "item66",
+                "item67"
             ],
             "ocel:vmap": {
-                "event_id": 6201,
-                "event_index": 6201,
-                "start_timestamp": "1999-07-05 00:00:00"
+                "event_index": 212,
+                "event_id": 212,
+                "start_timestamp": "2022-10-20 22:14:12.864992"
             }
         },
         "3": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "1999-10-04T00:00:00",
+            "ocel:activity": "Payment Reminder",
+            "ocel:timestamp": "2022-10-20T22:19:40.864992",
             "ocel:omap": [
-                "4500007345_00010",
-                "4500007345"
+                "order33"
             ],
             "ocel:vmap": {
-                "event_id": 6782,
-                "event_index": 6782,
-                "start_timestamp": "1999-10-04 00:00:00"
+                "event_index": 214,
+                "event_id": 214,
+                "start_timestamp": "2022-10-20 22:19:40.864992"
             }
         },
         "4": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2000-01-10T00:00:00",
+            "ocel:activity": "Pick Item",
+            "ocel:timestamp": "2022-10-20T22:19:40.864992",
             "ocel:omap": [
-                "4500008048_00010",
-                "4500008048"
+                "item67"
             ],
             "ocel:vmap": {
-                "event_id": 7490,
-                "event_index": 7490,
-                "start_timestamp": "2000-01-10 00:00:00"
+                "event_index": 215,
+                "event_id": 215,
+                "start_timestamp": "2022-10-20 22:19:40.864992"
             }
         },
         "5": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2000-02-07T00:00:00",
+            "ocel:activity": "Pick Item",
+            "ocel:timestamp": "2022-10-20T22:19:40.864992",
             "ocel:omap": [
-                "4500008160_00010",
-                "4500008160"
+                "item66"
             ],
             "ocel:vmap": {
-                "event_id": 7622,
-                "event_index": 7622,
-                "start_timestamp": "2000-02-07 00:00:00"
+                "event_index": 216,
+                "event_id": 216,
+                "start_timestamp": "2022-10-20 22:19:40.864992"
             }
         },
         "6": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2000-07-10T00:00:00",
+            "ocel:activity": "Load Cargo",
+            "ocel:timestamp": "2022-10-20T22:50:54.864992",
             "ocel:omap": [
-                "4500009207_00010",
-                "4500009207"
+                "item66",
+                "item67",
+                "delivery11"
             ],
             "ocel:vmap": {
-                "event_id": 9018,
-                "event_index": 9018,
-                "start_timestamp": "2000-07-10 00:00:00"
+                "event_index": 239,
+                "event_id": 239,
+                "start_timestamp": "2022-10-20 22:50:54.864992"
             }
         },
         "7": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2001-02-06T00:00:00",
+            "ocel:activity": "Pay Order",
+            "ocel:timestamp": "2022-10-23T00:21:44.868991",
             "ocel:omap": [
-                "4500010442_00010",
-                "4500010442"
+                "order33"
             ],
             "ocel:vmap": {
-                "event_id": 10776,
-                "event_index": 10776,
-                "start_timestamp": "2001-02-06 00:00:00"
+                "event_index": 1366,
+                "event_id": 1366,
+                "start_timestamp": "2022-10-23 00:21:44.868991"
             }
         },
         "8": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2002-09-03T00:00:00",
+            "ocel:activity": "Fuel Car",
+            "ocel:timestamp": "2022-12-11T23:26:02.871959",
             "ocel:omap": [
-                "4500014196_00010",
-                "4500014196"
+                "delivery11"
             ],
             "ocel:vmap": {
-                "event_id": 16137,
-                "event_index": 16137,
-                "start_timestamp": "2002-09-03 00:00:00"
+                "event_index": 2307,
+                "event_id": 2307,
+                "start_timestamp": "2022-12-11 23:26:02.871959"
             }
         },
         "9": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2002-09-06T00:00:00",
+            "ocel:activity": "Start Route",
+            "ocel:timestamp": "2022-12-11T23:51:01.871959",
             "ocel:omap": [
-                "4500014317_00010",
-                "4500014317"
+                "item66",
+                "item67",
+                "delivery11"
             ],
             "ocel:vmap": {
-                "event_id": 16258,
-                "event_index": 16258,
-                "start_timestamp": "2002-09-06 00:00:00"
+                "event_index": 2308,
+                "event_id": 2308,
+                "start_timestamp": "2022-12-11 23:51:01.871959"
             }
         },
         "10": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2002-11-06T00:00:00",
+            "ocel:activity": "End Route",
+            "ocel:timestamp": "2022-12-12T04:55:21.871959",
             "ocel:omap": [
-                "4500014522_00040",
-                "4500014522_00030",
-                "4500014522_00010",
-                "4500014522_00020",
-                "4500014522"
+                "item66",
+                "item67",
+                "delivery11"
             ],
             "ocel:vmap": {
-                "event_id": 16586,
-                "event_index": 16586,
-                "start_timestamp": "2002-11-06 00:00:00"
-            }
-        },
-        "11": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2003-01-29T00:00:00",
-            "ocel:omap": [
-                "4500014999_00010",
-                "4500014999_00020",
-                "4500014999"
-            ],
-            "ocel:vmap": {
-                "event_id": 17209,
-                "event_index": 17209,
-                "start_timestamp": "2003-01-29 00:00:00"
-            }
-        },
-        "12": {
-            "ocel:activity": "Create Purchase Order",
-            "ocel:timestamp": "2014-06-24T00:00:00",
-            "ocel:omap": [
-                "4500018226_00010",
-                "4500018226"
-            ],
-            "ocel:vmap": {
-                "event_id": 23503,
-                "event_index": 23503,
-                "start_timestamp": "2014-06-24 00:00:00"
+                "event_index": 2309,
+                "event_id": 2309,
+                "start_timestamp": "2022-12-12 04:55:21.871959"
             }
         }
     },
     "ocel:objects": {
-        "4500004955_00010": {
-            "ocel:type": "EBELN_EBELP",
+        "order33": {
+            "ocel:type": "order",
             "ocel:ovmap": {}
         },
-        "4500004955": {
-            "ocel:type": "EBELN",
+        "item66": {
+            "ocel:type": "item",
             "ocel:ovmap": {}
         },
-        "4500006769_00010": {
-            "ocel:type": "EBELN_EBELP",
+        "item67": {
+            "ocel:type": "item",
             "ocel:ovmap": {}
         },
-        "4500006769": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500007345_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500007345": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500008048_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500008048": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500008160_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500008160": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500009207_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500009207": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500010442_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500010442": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500014196_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014196": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500014317_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014317": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500014522_00040": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014522_00030": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014522_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014522_00020": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014522": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500014999_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014999_00020": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500014999": {
-            "ocel:type": "EBELN",
-            "ocel:ovmap": {}
-        },
-        "4500018226_00010": {
-            "ocel:type": "EBELN_EBELP",
-            "ocel:ovmap": {}
-        },
-        "4500018226": {
-            "ocel:type": "EBELN",
+        "delivery11": {
+            "ocel:type": "delivery",
             "ocel:ovmap": {}
         }
     }
