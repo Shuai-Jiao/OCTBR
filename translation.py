@@ -183,7 +183,7 @@ def PNMatching(ele,ocpn,ot=None):
     return None
 
 # convert the ocel first to json, then to pm4py ocel
-def ELtranslate_OCPA2PM4PY(ocel,export_path):
+def ELtranslate_OCPA2PM4PY(ocel,export_path='./sample_logs/jsonocel/intermediate.jsonocel'):
     ocpaexporter(ocel,export_path)
     return pm4py.read_ocel(export_path)
 

@@ -170,11 +170,6 @@ def Lossfunction(pred,tar,variant='squared error'):
     else:
         raise ValueError(f'{variant} is not valid')   
 
-def numerical_gradient_ocfm(relation,weights,step_size=0.00001,quality='fitness'): 
-    logocfm = OCEL2OCFM(ELtranslate_OCPA2PM4PY(ocel,'./sample_logs/jsonocel/intermediate.jsonocel'))
-    modelocfm = OCPN2OCFM(decomposeOCPN(PNtranslate_OCPA2PM4PY(ocpn)))
-    nonconflicttotal, conform, _ = CompareOCFM(logocfm,modelocfm,fitnessweight)
-    predfit = conform/(nonconflicttotal+1)
 
 def Evaluation(ocel,ocpn,threshold = 0.05):   
     ocpnlist = decomposeOCPN(ocpn)

@@ -37,7 +37,8 @@ def ParsingCSV(csvpath, parameters=None):
                                 for x in csvlog['ocel:timestamp']]
     return csvlog
 
-#preprocess the csv (e.g., attributes mapping, drop duplication) and convert to the expected output format
+# preprocess the csv (e.g., attributes mapping, drop duplication) and convert to the expected output format
+# currently only for BPI preprocessing
 def PreprocessCSV(path,format = 'ELocpa'):
     name = path.split('/')[-1]
     if name == 'BPI2017-Final.csv':
