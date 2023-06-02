@@ -70,8 +70,11 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         marking[pl] = Multiset()
         if pl.initial:
             initialplace[pl.object_type].add(pl)
-        predecessorcandidate[pl] = Findsilencepredecessor(pl)
-        successorcandidate[pl] = Findsilencesuccessor()
+        # we have to set the visited parameter to [] in each iteration explicitly!\
+        # otherwise visited will be considered as an global variable!!!
+        predecessorcandidate[pl] = find_silence_predecessor(pl,[])
+        successorcandidate[pl] = Findsilencesuccessor(pl,[])
+    #print('silence search finished------',predecessorcandidate,'\n----',successorcandidate)
     #print(initialplace)
     #One object could produce multiple tokens!!!
     #Find out the silence successors for the initial states in case of\
@@ -102,7 +105,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         # build up possible places
 
         for pl1 in marking.keys():
-            silencesuccessor =  Findsilencesuccessor(pl1)          
+            silencesuccessor = successorcandidate[pl1]         
             if len(marking[pl1])>0:
                 for pl2 in silencesuccessor:
                     #Find out the possible object pair connected by the silence
@@ -124,7 +127,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
             if not obj in tokenmap:
                 for pl1 in initialplace[objecttype]:
                     marking[pl1].add(obj)
-                    for pl2 in Findsilencesuccessor(pl1):
+                    for pl2 in successorcandidate[pl1]:
                         possibleplace[pl2].add(obj)
                         #print('~~~',pl2.name)
                 tokenmap.add(obj)
@@ -133,7 +136,11 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
             for arc in tr.in_arcs:
                 #Check whether the marking is initialized
                 #Initializemarking(marking,arc.source)
-                silencepredecessor = Findsilencepredecessor(obj,objecttype,arc.source,marking)
+                # find out the prerequired place from the predecessor candidates
+                #print('predecessor candidate----',arc.source,predecessorcandidate[arc.source])
+                for pl1 in predecessorcandidate[arc.source]:
+                    if pl1 in marking.keys() and obj in marking[pl1]:
+                        silencepredecessor = pl1
                 #first determine whether the start place for the corr. type is
                 '''if arc.source.initial and arc.source.object_type == objecttype:
                     missing = False
@@ -193,10 +200,29 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
     for k in marking.keys():
             r += len(marking[k])
             if len(marking[k]) >= 1:
-                print(k, marking[k])
+                print('remaining places---',k, marking[k])
     print('pcmr:',p,c,m,r,p+m,c+r)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
+def find_silence_predecessor(place,visited=[]):
+    silencepredecessor = []
+    visited.append(place)
+    for ia1 in place.in_arcs:
+        if ia1.source.silent:           
+            for ia2 in ia1.source.in_arcs:
+                if ia2.source in visited:
+                    print('stop loop')
+                    continue
+                silencepredecessor.append(ia2.source)
+                #The object should be in the predecessor! Because there could be\
+                #multiple predecessors, we have to find the one contain the object!
+                silencepredecessor += find_silence_predecessor(ia2.source,visited)
+                #Consider the case that the predecessor is initial marking. This is\
+                #a special case because no objects are initialized at there!
+                #Find the first satisfiable predecessor to make the algo deterministic
+                     
+    return silencepredecessor
+                
 #Find out the predecessing place that contains token and linked by silence
 #ot is the object type of the object! not the object type of the place
 def Findsilencepredecessor(obj,ot,place,marking,visited=[]):
@@ -220,7 +246,7 @@ def Findsilencepredecessor(obj,ot,place,marking,visited=[]):
                 '''elif ia2.source.initial and ia2.source.object_type == ot:
                     return ia2.source'''
                     
-    
+
 def Findsilencesuccessor(place,visited=[]):
     # pl = place
     # while any([oa.target.silent for oa in pl.out_arcs]):
@@ -235,9 +261,10 @@ def Findsilencesuccessor(place,visited=[]):
                 # if the place is visited, then ignore! all the recursed places\
                 # will be added to the visited list.
                 if oa2.target in visited:
-                    print('Loop to stop')
+                    print('Loop to stop',place,oa2.target)
                     continue
                 posssucc.append(oa2.target)
+                visited.append(oa2.target)
                 #print('oa2.target---',place.name,oa2.target,Findsilencesuccessor(oa2.target))
                 #This is used to consider the multiple consecutive silence!!!
                 #Confused $+$ and $extend$, speechless...
