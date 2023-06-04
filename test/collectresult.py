@@ -17,10 +17,11 @@ ocpafile = ['BPI2017-Final']
 ocelstandardfile = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
 storedpath = [path+'processed' for path in ocelstandardfile]
 
-for path in ocelstandardfile[1:2]:
+# used for creating the sublog
+'''for path in ocelstandardfile:
     print('hi',path)
     ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
-    ocel = extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')
+    extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')'''
 
 #handle ocel standard
 '''for path in ocelstandardfile[1:2]:

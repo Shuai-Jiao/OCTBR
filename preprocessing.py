@@ -172,11 +172,17 @@ def extract_sublog(ocel,storepath=None):
     var = ocel.process_executions
     # Too long would be too expensive for testing
     print('the number of processes and the total number of events',len(var),sum([len(ele) for ele in var]))
-    filter_var = [ele for ele in var if len(ele)>3 and len(ele)<len(ocel.obj.activities)] 
-    
+    # To avoid empty/too short event log after pruning!
+    if len(var) < 1000:
+        filter_var = var
+    else:
+        filter_var = [ele for ele in var if len(ele)>3 and len(ele)<len(ocel.obj.activities)]    
     if len(filter_var)<1000:
-        raise ValueError('The number of processes is less than 1000')
-    subprocesses = random.sample(filter_var,1000)
+        #raise ValueError('The number of processes is less than 1000')
+        print(storepath.split('/')[-1],': the number of processes is less than 1000')
+        subprocesses = filter_var
+    else:
+        subprocesses = random.sample(filter_var,1000)
     print('the number of filtered processes and the total number of events',len(subprocesses),sum([len(ele) for ele in subprocesses]))
     sublog = ocel.log.log[ocel.log.log['event_id'].isin(list(chain(*subprocesses)))]
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
@@ -191,3 +197,13 @@ def pandas_to_ocel(df,parameter):
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
     print('number of events~~~',len(obj.raw.events))
     return OCEL(log, obj, graph, parameter)
+
+def create_sublog(ocellist=None):
+    if ocellist is None:
+        prefix1 = '/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/'
+        prefix2 = './sample_logs/csv/'
+        suffix = '.csv'
+        ocellist = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
+        for path in ocellist:
+            ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
+            extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')

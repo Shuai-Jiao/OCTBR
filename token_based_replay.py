@@ -240,6 +240,7 @@ def find_silence_predecessor(place,visited=[]):
                 if ia2.source in visited:
                     #print('stop loop')
                     continue
+                # the object type should be consistent!
                 if place.object_type == ia2.source.object_type:
                     silencepredecessor.append(ia2.source)
                     #The object should be in the predecessor! Because there could be\
