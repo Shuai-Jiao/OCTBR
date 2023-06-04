@@ -2,6 +2,7 @@ import pm4py
 from ocpa.objects.oc_petri_net import obj as objocpa
 from multiset import *
 from typing import List, Dict, Set
+import time
 
 #ONLY accept pm4py format!
 def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "average"):
@@ -45,6 +46,7 @@ def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "
 
 #Based on OCPA    
 def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
+    start_time = time.time()
     #start with the initial
     if type(ocpn) is not objocpa.ObjectCentricPetriNet:
         raise ValueError("The ocpn format is not well-defined in ocpa")
@@ -113,7 +115,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
 
         # find out all the possible marking executed after silence
         # build up possible places
-        print(' start possible set---')
+        #print(' start possible set---')
         for pl1 in marking.keys():
             silencesuccessor = successorcandidate[pl1]         
             if len(marking[pl1])>0 and len(silencesuccessor)>0:
@@ -125,7 +127,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                             possibleplace[pl2].add(obj)
                             #possiblemarking.add(possibleplace)
             #print('Silence successor',pl1,Findsilencesuccessor(pl1))
-        print(' end possible set----')
+        #print(' end possible set----')
                              
         #print('Possibleplace',possibleplace.keys())
         
@@ -208,13 +210,25 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     if obj in marking[arc.target]:
                         marking[arc.target].remove(obj)
                     c += 1
+    # determine whether the remaining tokens can reach the end by silence
     for k in marking.keys():
-            r += len(marking[k])
-            if len(marking[k]) >= 1:
+            successorcandidates = Findsilencesuccessor(k,[])
+            final = False
+            for pl in successorcandidates:
+                if pl.final:
+                    final = True
+                    break
+            if final:
+                continue
+            else:
+                r += len(marking[k])
                 print('remaining places---',k, marking[k])
+
     print('pcmr:',p,c,m,r,p+m,c+r)
     if c == 0 or p == 0:
         raise ValueError('no consumed or produced tokens')
+    end_time = time.time()
+    print('Running time (s):',end_time-start_time)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
 def find_silence_predecessor(place,visited=[]):
@@ -224,15 +238,16 @@ def find_silence_predecessor(place,visited=[]):
         if ia1.source.silent:           
             for ia2 in ia1.source.in_arcs:
                 if ia2.source in visited:
-                    print('stop loop')
+                    #print('stop loop')
                     continue
-                silencepredecessor.append(ia2.source)
-                #The object should be in the predecessor! Because there could be\
-                #multiple predecessors, we have to find the one contain the object!
-                silencepredecessor += find_silence_predecessor(ia2.source,visited)
-                #Consider the case that the predecessor is initial marking. This is\
-                #a special case because no objects are initialized at there!
-                #Find the first satisfiable predecessor to make the algo deterministic
+                if place.object_type == ia2.source.object_type:
+                    silencepredecessor.append(ia2.source)
+                    #The object should be in the predecessor! Because there could be\
+                    #multiple predecessors, we have to find the one contain the object!
+                    silencepredecessor += find_silence_predecessor(ia2.source,visited)
+                    #Consider the case that the predecessor is initial marking. This is\
+                    #a special case because no objects are initialized at there!
+                    #Find the first satisfiable predecessor to make the algo deterministic
                      
     return silencepredecessor
                 
@@ -244,7 +259,7 @@ def Findsilencepredecessor(obj,ot,place,marking,visited=[]):
         if ia1.source.silent:           
             for ia2 in ia1.source.in_arcs:
                 if ia2.source in visited:
-                    print('stop loop')
+                    #print('stop loop')
                     continue
                 #The object should be in the predecessor! Because there could be\
                 #multiple predecessors, we have to find the one contain the object!
@@ -274,16 +289,17 @@ def Findsilencesuccessor(place,visited=[]):
                 # if the place is visited, then ignore! all the recursed places\
                 # will be added to the visited list.
                 if oa2.target in visited:
-                    print('Loop to stop',place,oa2.target)
+                    #print('Loop to stop',place,oa2.target)
                     continue
-                posssucc.append(oa2.target)
-                visited.append(oa2.target)
-                #print('oa2.target---',place.name,oa2.target,Findsilencesuccessor(oa2.target))
-                #This is used to consider the multiple consecutive silence!!!
-                #Confused $+$ and $extend$, speechless...
-                #print('b',oa2,oa2.target)
-                #print('b',oa2)
-                posssucc = posssucc + Findsilencesuccessor(oa2.target,visited)
+                if place.object_type == oa2.target.object_type:
+                    posssucc.append(oa2.target)
+                    visited.append(oa2.target)
+                    #print('oa2.target---',place.name,oa2.target,Findsilencesuccessor(oa2.target))
+                    #This is used to consider the multiple consecutive silence!!!
+                    #Confused $+$ and $extend$, speechless...
+                    #print('b',oa2,oa2.target)
+                    #print('b',oa2)
+                    posssucc = posssucc + Findsilencesuccessor(oa2.target,visited)
     return posssucc
 
 

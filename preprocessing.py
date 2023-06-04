@@ -19,6 +19,7 @@ import random
 import math
 from itertools import chain
 from collections import Counter
+from ocpa.objects.log.exporter.ocel.factory import apply as ocpaexporter
 
 def ParsingCSV(csvpath, parameters=None):
     csvlog = pd.read_csv(csvpath,sep=';')
@@ -167,7 +168,7 @@ def create_training_set(ocel,fraction=None,iteration=None):
     return traininglist
 
 # get a smaller ocel for testing, otherwise the result won't come even in 2h
-def extract_sublog(ocel):
+def extract_sublog(ocel,storepath=None):
     var = ocel.process_executions
     # Too long would be too expensive for testing
     print('the number of processes and the total number of events',len(var),sum([len(ele) for ele in var]))
@@ -179,6 +180,8 @@ def extract_sublog(ocel):
     print('the number of filtered processes and the total number of events',len(subprocesses),sum([len(ele) for ele in subprocesses]))
     sublog = ocel.log.log[ocel.log.log['event_id'].isin(list(chain(*subprocesses)))]
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
+    if not storepath is None:
+        ocpaexporter(ocel,storepath)
     return pandas_to_ocel(sublog,ocel.parameters)
 
 def pandas_to_ocel(df,parameter):

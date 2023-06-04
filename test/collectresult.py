@@ -17,15 +17,20 @@ ocpafile = ['BPI2017-Final']
 ocelstandardfile = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
 storedpath = [path+'processed' for path in ocelstandardfile]
 
-#handle ocel standard
 for path in ocelstandardfile[1:2]:
     print('hi',path)
     ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
-    ocel = extract_sublog(ocel)
+    ocel = extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')
+
+#handle ocel standard
+'''for path in ocelstandardfile[1:2]:
+    print('hi',path)
+    ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
+    ocel = extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')
     ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
     print('OCtokenbased-------',OCtokenbasedreplay(ocpn,ocel))
     print('Im here~~~~~~~~~~~~~')
-    print('flattened TBR-------',OC_Conformance(PNtranslate_OCPA2PM4PY(ocpn),ELtranslate_OCPA2PM4PY(ocel)))
+    print('flattened TBR-------',OC_Conformance(PNtranslate_OCPA2PM4PY(ocpn),ELtranslate_OCPA2PM4PY(ocel)))'''
 
 #handle BPI
 '''ocel = PreprocessCSV(prefix2+ocpafile[0]+suffix,'ELocpa') 
