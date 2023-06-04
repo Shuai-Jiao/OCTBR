@@ -6,7 +6,7 @@ from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 import pandas as pd
 sys.path.append(".")
-from preprocessing import PreprocessCSV, solve_ot_syntaxerror
+from preprocessing import PreprocessCSV, solve_ot_syntaxerror, extract_sublog
 from token_based_replay import OC_Conformance, OCtokenbasedreplay
 from translation import ELtranslate_OCPA2PM4PY,PNtranslate_OCPA2PM4PY
 
@@ -18,9 +18,10 @@ ocelstandardfile = ['github_pm4py','o2c','p2p','recruiting','running-example','t
 storedpath = [path+'processed' for path in ocelstandardfile]
 
 #handle ocel standard
-for path in ocelstandardfile[1:]:
+for path in ocelstandardfile[1:2]:
     print('hi',path)
     ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
+    ocel = extract_sublog(ocel)
     ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
     print('OCtokenbased-------',OCtokenbasedreplay(ocpn,ocel))
     print('Im here~~~~~~~~~~~~~')

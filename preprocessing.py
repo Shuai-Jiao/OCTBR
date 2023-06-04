@@ -149,11 +149,8 @@ def create_training_set(ocel,fraction=None,iteration=None):
         # size of the generated ocel. 
         # BUT, if we only pack one process in an ocel, the model will be overfitting!!!\
         # which contributes nothing to learning.
-        log = Table(filteredlog, parameters = ocel.parameters)
-        obj = obj_converter.apply(filteredlog)
-        graph = EventGraph(table_utils.eog_from_log(log))
         #logset.append(OCEL(log, obj, graph, ocel.parameters))
-        traininglist.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(pandas_to_ocel(filteredlog,ocel.parameters))
     # pack in the rest process     
     restnum = len(trainingID)%iteration
     if restnum > 0:
@@ -164,10 +161,30 @@ def create_training_set(ocel,fraction=None,iteration=None):
         aggregateprocess = list(chain(*processes))
         filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(aggregateprocess)]
         #convert to ocel format
-        log = Table(filteredlog, parameters = ocel.parameters)
-        obj = obj_converter.apply(filteredlog)
-        graph = EventGraph(table_utils.eog_from_log(log))
         #logset.append(OCEL(log, obj, graph, ocel.parameters))
-        traininglist.append(OCEL(log, obj, graph, ocel.parameters))
+        traininglist.append(pandas_to_ocel(filteredlog,ocel.parameters))
 
     return traininglist
+
+# get a smaller ocel for testing, otherwise the result won't come even in 2h
+def extract_sublog(ocel):
+    var = ocel.process_executions
+    # Too long would be too expensive for testing
+    print('the number of processes and the total number of events',len(var),sum([len(ele) for ele in var]))
+    filter_var = [ele for ele in var if len(ele)>3 and len(ele)<len(ocel.obj.activities)] 
+    
+    if len(filter_var)<1000:
+        raise ValueError('The number of processes is less than 1000')
+    subprocesses = random.sample(filter_var,1000)
+    print('the number of filtered processes and the total number of events',len(subprocesses),sum([len(ele) for ele in subprocesses]))
+    sublog = ocel.log.log[ocel.log.log['event_id'].isin(list(chain(*subprocesses)))]
+    #logset.append(OCEL(log, obj, graph, ocel.parameters))
+    return pandas_to_ocel(sublog,ocel.parameters)
+
+def pandas_to_ocel(df,parameter):
+    log = Table(df, parameters = parameter)
+    obj = obj_converter.apply(df)
+    graph = EventGraph(table_utils.eog_from_log(log))
+    #logset.append(OCEL(log, obj, graph, ocel.parameters))
+    print('number of events~~~',len(obj.raw.events))
+    return OCEL(log, obj, graph, parameter)

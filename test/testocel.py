@@ -4,6 +4,10 @@ from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 import pandas as pd
+import sys
+sys.path.append(".")
+from preprocessing import solve_ot_syntaxerror, extract_sublog
+
 
 prefix1 = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/jsonocel/"
 ocelfolder = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
@@ -85,7 +89,7 @@ attrmapp2p = {"obj_names":object_typesp2p,
 '''
 #Create a ocel that fixed the object type syntax error\
 #,stores the processed ocel in a new path and return the ocel.
-def solve_ot_syntaxerror(path,storedpath):
+'''def solve_ot_syntaxerror(path,storedpath):
     df = pd.read_csv(path)
     object_types = [ele.replace("ocel:type:",'').replace(":","_") for ele in list(df.columns) if 'ocel:type:' in ele]
     rename = {}
@@ -99,7 +103,7 @@ def solve_ot_syntaxerror(path,storedpath):
                             "time_name":'ocel:timestamp',
                             "sep":","}
     ocel = csv_import_factory.apply(file_path = storedpath,parameters = attrmap)
-    return ocel
+    return ocel'''
 
 '''for index, row in enumerate(df.itertuples(), 1):
     print(df.columns,dir(row))
@@ -110,12 +114,11 @@ def solve_ot_syntaxerror(path,storedpath):
 #print(df.columns,dir(df))
 
 #The valid test for importing 5 OCELs
-for i,path in enumerate(pathlist[:2]):
+for i,path in enumerate(pathlist[1:2]):
     ocel = solve_ot_syntaxerror(prefixcsv+path+suffixcsv,prefixcsv+storedpath[i]+suffixcsv)
+    ocel = extract_sublog(ocel)
     ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
-    print(ocel.log.log,'places:',ocpn.places)
     ocpn_vis_factory.save(ocpn_vis_factory.apply(ocpn), "./test/"+storedpath[i]+'.png')
-    print(path,'is finished')
 
 
 #ocel = csv_import_factory.apply(file_path = p2pprocessed,parameters = attrmapp2p)

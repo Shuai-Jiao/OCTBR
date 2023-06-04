@@ -74,6 +74,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
         # otherwise visited will be considered as an global variable!!!
         predecessorcandidate[pl] = find_silence_predecessor(pl,[])
         successorcandidate[pl] = Findsilencesuccessor(pl,[])
+    print('silence search finished--------')
     #print('silence search finished------',predecessorcandidate,'\n----',successorcandidate)
     #print(initialplace)
     #One object could produce multiple tokens!!!
@@ -86,7 +87,16 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
             #print('!!',initpl,Findsilencesuccessor(initpl))
     #print('---',semiinitialplace)
 
+    # counter is used for tracking the progress of OC TBR
+    counter = 0
+    replayedevents = 0
+    totalevents = len(ocel.obj.raw.events)
+    print('event dictionary',len(eventdict.keys()))
     for eventID in eventdict:
+        counter += 1
+        if counter%100 == 0:
+            replayedevents += 100
+            print('progress:',replayedevents,' from ',totalevents)
         event = eventdict[eventID]
         tr = ocpn.find_transition(event.act)
         #tr could be None! if there is no such transition in the petri net
@@ -103,10 +113,10 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
 
         # find out all the possible marking executed after silence
         # build up possible places
-
+        print(' start possible set---')
         for pl1 in marking.keys():
             silencesuccessor = successorcandidate[pl1]         
-            if len(marking[pl1])>0:
+            if len(marking[pl1])>0 and len(silencesuccessor)>0:
                 for pl2 in silencesuccessor:
                     #Find out the possible object pair connected by the silence
                     for obj in marking[pl1]:
@@ -115,6 +125,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                             possibleplace[pl2].add(obj)
                             #possiblemarking.add(possibleplace)
             #print('Silence successor',pl1,Findsilencesuccessor(pl1))
+        print(' end possible set----')
                              
         #print('Possibleplace',possibleplace.keys())
         
@@ -202,6 +213,8 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
             if len(marking[k]) >= 1:
                 print('remaining places---',k, marking[k])
     print('pcmr:',p,c,m,r,p+m,c+r)
+    if c == 0 or p == 0:
+        raise ValueError('no consumed or produced tokens')
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
 def find_silence_predecessor(place,visited=[]):
