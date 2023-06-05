@@ -5,16 +5,34 @@ from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 import pandas as pd
 import sys
+import json
 sys.path.append(".")
-from preprocessing import solve_ot_syntaxerror, extract_sublog
+from preprocessing import solve_ot_syntaxerror, extract_sublog, create_sublog, store_ocel_parameter
 
-
+prefix3 = './sample_logs/jsonocel/'
+prefix4 = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/jsonocel/"
+datalist = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
+suffix2 = '_sublog.jsonocel'
 prefix1 = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/jsonocel/"
 ocelfolder = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
 pathlist = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
 storedpath = [path+'processed' for path in pathlist]
 suffix1 = '.jsonocel'
+prefix2 = '/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/'
+suffix3 = '.csv'
+#create_sublog()
+#store_ocel_parameter([prefix2+ele+suffix3 for ele in pathlist])
+ocel_parameter = {}
+for path in pathlist[:3]:
+    #ocel = solve_ot_syntaxerror(prefix2+path+suffix3,prefix2+path+'processed'+suffix3)
+    #ocel = csv_import_factory.apply(prefix2+path+suffix3)
+    print('hi-----',path)
+    with open("ocel_parameter.json","r") as file:
+        parameter = json.load(file)
+    ocel = ocel_import_factory.apply(prefix3+path+suffix2,parameters=parameter)
+    
 
+    #print('information ',path,'numeber of process: ',len(ocel.process_executions))
 prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"
 suffixcsv = ".csv"
 pathBPI =  '/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/sample_logs/csv/BPI2017-Final.csv'
@@ -114,12 +132,12 @@ attrmapp2p = {"obj_names":object_typesp2p,
 #print(df.columns,dir(df))
 
 #The valid test for importing 5 OCELs
-for i,path in enumerate(pathlist[1:2]):
+'''for i,path in enumerate(pathlist[1:2]):
     ocel = solve_ot_syntaxerror(prefixcsv+path+suffixcsv,prefixcsv+storedpath[i]+suffixcsv)
     ocel = extract_sublog(ocel)
     ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
     ocpn_vis_factory.save(ocpn_vis_factory.apply(ocpn), "./test/"+storedpath[i]+'.png')
-
+'''
 
 #ocel = csv_import_factory.apply(file_path = p2pprocessed,parameters = attrmapp2p)
 #ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})

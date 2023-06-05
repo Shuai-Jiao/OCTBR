@@ -10,6 +10,7 @@ from ocpa.objects.log.variants.graph import EventGraph
 import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 from ocpa.objects.log.importer.csv import factory as csv_import_factory
+from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.objects.log.ocel import OCEL
 from ocpa.objects.log.variants.table import Table
 from ocpa.objects.log.variants.graph import EventGraph
@@ -20,6 +21,7 @@ import math
 from itertools import chain
 from collections import Counter
 from ocpa.objects.log.exporter.ocel.factory import apply as ocpaexporter
+import json
 
 def ParsingCSV(csvpath, parameters=None):
     csvlog = pd.read_csv(csvpath,sep=';')
@@ -83,20 +85,23 @@ def PreprocessCSV(path,format = 'ELocpa'):
 #prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"
 #suffixcsv = ".csv"
 #storedpath = [path+'processed' for path in pathlist]
-def solve_ot_syntaxerror(path,storedpath):
-    df = pd.read_csv(path)
+# recieve a csv file, preprocess it, and then convert the post csv (in stored path) to ocel
+def solve_ot_syntaxerror(csv_path,stored_csv_path=None):
+    if stored_csv_path == None:
+        stored_csv_path = '/'.join(csv_path.split('/')[:-1])+'/'+csv_path.split('/')[-1].split('.')[-2]+'processed.csv'
+    df = pd.read_csv(csv_path)
     object_types = [ele.replace("ocel:type:",'').replace(":","_") for ele in list(df.columns) if 'ocel:type:' in ele]
     rename = {}
     for ot in [obj for obj in df.columns if 'ocel:type:' in obj]:
         rename[ot] = ot.replace("ocel:type:",'').replace(":","_") 
     df.rename(columns=rename,inplace=True)
-    df.to_csv(storedpath)
+    df.to_csv(stored_csv_path)
     attrmap = {"obj_names":object_types,
                             "val_names":[],
                             "act_name":'ocel:activity',
                             "time_name":'ocel:timestamp',
                             "sep":","}
-    ocel = csv_import_factory.apply(file_path = storedpath,parameters = attrmap)
+    ocel = csv_import_factory.apply(file_path = stored_csv_path,parameters = attrmap)
     return ocel
 
 # get an OCPA ocel
@@ -187,7 +192,7 @@ def extract_sublog(ocel,storepath=None):
     sublog = ocel.log.log[ocel.log.log['event_id'].isin(list(chain(*subprocesses)))]
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
     if not storepath is None:
-        ocpaexporter(ocel,storepath)
+        ocpaexporter(pandas_to_ocel(sublog,ocel.parameters),storepath)
     return pandas_to_ocel(sublog,ocel.parameters)
 
 def pandas_to_ocel(df,parameter):
@@ -198,6 +203,7 @@ def pandas_to_ocel(df,parameter):
     print('number of events~~~',len(obj.raw.events))
     return OCEL(log, obj, graph, parameter)
 
+#Create the corresponding sublogs of the given log for testing
 def create_sublog(ocellist=None):
     if ocellist is None:
         prefix1 = '/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/'
@@ -207,3 +213,16 @@ def create_sublog(ocellist=None):
         for path in ocellist:
             ocel = solve_ot_syntaxerror(prefix1+path+suffix,prefix1+path+'processed'+suffix)
             extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')
+
+# store the import parameter of the given ocel in a json file (used in importing next time)
+def store_ocel_parameter(pathlist):
+    with open('ocel_parameter.json','r') as file:
+        ocel_parameter = json.load(file)
+    for path in pathlist:
+        name = path.split('/')[-1].split('.')[-2]
+        ocelstandard = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
+        if name in ocelstandard:
+            ocel = solve_ot_syntaxerror(path)
+            ocel_parameter[name] = ocel.parameters
+    with open('ocel_parameter.json','w') as file:
+        json.dump(ocel_parameter,file)
