@@ -33,6 +33,7 @@ def PNtranslate_OCPA2PM4PY(pnocpa):
     for pl in pnocpa.places:
         #place = objpm4py.PetriNet.Place(pl.name,pl.in_arcs,pl.out_arcs)
         if pl.initial:
+            #the name "source" could be duplicated, doesn't matter
             place = objpm4py.PetriNet.Place('source')
             s[pl.object_type] = objpm4py.Marking()            
             s[pl.object_type][place] = 1

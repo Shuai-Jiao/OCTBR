@@ -11,7 +11,13 @@ import sys
 sys.path.append(".")
 from preprocessing import PreprocessCSV
 
+prefix = "/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/sample_logs/"
+prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"
 path = "./sample_logs/csv/BPI2017-Final.csv"
+path2 = prefixcsv+"running-example.csv"
 a = PreprocessCSV(path,'ELocpa')
 b = PreprocessCSV(path,'ELpm4py')
 print(type(a),type(b))
+#csv_import_factory.apply(path2)
+ocel2 = pm4py.read_ocel(path2)
+ocpn2 = pm4py.discover_oc_petri_net(ocel2)

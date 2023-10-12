@@ -19,7 +19,7 @@ def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "
         if weight == 'average':
             pnweight[ot] = 1/len(ocpn['object_types'])
             elweight[ot] = 1/len(ocpn['object_types'])
-        elif weight == 'ratio':
+        elif weight == 'fraction':
             pnweight[ot] = len(pndict[ot][0].arcs)/pnfactor
             elweight[ot] = len(eldict[ot])/elfactor
         else:

@@ -1,0 +1,8 @@
+graphviz==0.16
+matplotlib==3.2.2
+multiset==3.0.1
+numpy==1.19.5
+ocpa==1.0.0
+pandas==1.4.2
+pm4py==2.2.20.1
+sympy==1.6.1

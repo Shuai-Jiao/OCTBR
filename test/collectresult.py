@@ -14,7 +14,7 @@ prefix1 = '/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/'
 prefix2 = './sample_logs/csv/'
 suffix = '.csv'
 ocpafile = ['BPI2017-Final']
-ocelstandardfile = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
+ocelstandardfile = ['transfer_order','github_pm4py','o2c','p2p','recruiting','running-example','windows_events']
 storedpath = [path+'processed' for path in ocelstandardfile]
 
 # used for creating the sublog

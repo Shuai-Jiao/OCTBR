@@ -7,14 +7,16 @@ import pandas as pd
 from ocpa.objects.log.ocel import OCEL
 from ocpa.objects.log.variants.table import Table
 from ocpa.objects.log.variants.graph import EventGraph
-import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+import ocpa.objects.log.converter.versions.csv_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 from ocpa.objects.log.importer.csv import factory as csv_import_factory
 from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.objects.log.ocel import OCEL
 from ocpa.objects.log.variants.table import Table
 from ocpa.objects.log.variants.graph import EventGraph
-import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+from ocpa.objects.log.importer.ocel.versions.import_ocel_json import import_jsonocel
+import ocpa.objects.log.converter.factory as convert_factory
+import ocpa.objects.log.converter.versions.csv_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 import random
 import math
@@ -173,6 +175,7 @@ def create_training_set(ocel,fraction=None,iteration=None):
     return traininglist
 
 # get a smaller ocel for testing, otherwise the result won't come even in 2h
+# we have to avoid: the removing objects also 
 def extract_sublog(ocel,storepath=None):
     var = ocel.process_executions
     # Too long would be too expensive for testing
@@ -200,7 +203,7 @@ def pandas_to_ocel(df,parameter):
     obj = obj_converter.apply(df)
     graph = EventGraph(table_utils.eog_from_log(log))
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
-    print('number of events~~~',len(obj.raw.events))
+    #print('number of events~~~',len(obj.raw.events))
     return OCEL(log, obj, graph, parameter)
 
 #Create the corresponding sublogs of the given log for testing
@@ -215,7 +218,12 @@ def create_sublog(ocellist=None):
             extract_sublog(ocel,'./sample_logs/jsonocel/'+path+'_sublog.jsonocel')
 
 # store the import parameter of the given ocel in a json file (used in importing next time)
-def store_ocel_parameter(pathlist):
+def store_ocel_parameter(pathlist=None):
+    if pathlist is None:
+        prefix = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/jsonocel/"
+        suffix = "_sublog.jsonocel"
+        pathlist = ['github_pm4py','o2c','p2p','recruiting','running-example','transfer_order','windows_events']
+        pathlist = [prefix+ele+suffix for ele in pathlist]
     with open('ocel_parameter.json','r') as file:
         ocel_parameter = json.load(file)
     for path in pathlist:
@@ -224,5 +232,25 @@ def store_ocel_parameter(pathlist):
         if name in ocelstandard:
             ocel = solve_ot_syntaxerror(path)
             ocel_parameter[name] = ocel.parameters
+        if '_sublog' in path:
+            obj = import_jsonocel(path)
+            df, _ = convert_factory.apply(obj, variant='json_to_csv')
+            object_type = list(set(obj.meta.obj_types)&set(df.columns.values))
+            ocel_parameter[name] = {"obj_names":object_type}
     with open('ocel_parameter.json','w') as file:
         json.dump(ocel_parameter,file)
+
+# since the sublog misses the object type, we use the object type stored in json to parse it
+def parse_sublog(path):
+    name = path.split('/')[-1].split('.')[-2]
+    if '_sublog' in name:
+        with open("ocel_parameter.json","r") as file:
+            ocel_parameter = json.load(file)
+        if name in ocel_parameter.keys():
+            parameter = ocel_parameter[name]
+        else:
+            parameter = None
+        ocel = ocel_import_factory.apply(path,parameters=parameter)
+    else:
+        raise ValueError('Not with sublog suffix')
+    return ocel

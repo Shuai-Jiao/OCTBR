@@ -7,7 +7,7 @@ import pandas as pd
 import sys
 import json
 sys.path.append(".")
-from preprocessing import solve_ot_syntaxerror, extract_sublog, create_sublog, store_ocel_parameter
+from preprocessing import solve_ot_syntaxerror, extract_sublog, create_sublog, store_ocel_parameter, parse_sublog
 
 prefix3 = './sample_logs/jsonocel/'
 prefix4 = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/jsonocel/"
@@ -22,15 +22,21 @@ prefix2 = '/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/'
 suffix3 = '.csv'
 #create_sublog()
 #store_ocel_parameter([prefix2+ele+suffix3 for ele in pathlist])
+pathlist1 = [prefix3+path+suffix2 for path in pathlist]
 ocel_parameter = {}
-for path in pathlist[:3]:
+for path in pathlist1[:-1]:
     #ocel = solve_ot_syntaxerror(prefix2+path+suffix3,prefix2+path+'processed'+suffix3)
     #ocel = csv_import_factory.apply(prefix2+path+suffix3)
     print('hi-----',path)
-    with open("ocel_parameter.json","r") as file:
-        parameter = json.load(file)
+    ocel=parse_sublog(path)
+    '''with open("ocel_parameter.json","r") as file:
+        ocel_parameter = json.load(file)
+    if path+'_sublog' in ocel_parameter.keys():
+        parameter = ocel_parameter[path+'_sublog']
+    else:
+        parameter = ocel_parameter[path]
     ocel = ocel_import_factory.apply(prefix3+path+suffix2,parameters=parameter)
-    
+    '''
 
     #print('information ',path,'numeber of process: ',len(ocel.process_executions))
 prefixcsv = "/Users/jiao.shuai.1998.12.01outlook.com/Downloads/OCEL/csv/"

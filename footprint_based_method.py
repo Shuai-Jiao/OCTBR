@@ -44,7 +44,7 @@ def EvalOCFM(logocfm,modelocfm): #ocfm1 and ocfm2 are both lists
 # the list of ocfm.
 # ocfm is a dictionary, keyed by relation:str, items are pair of activities. 
 # weight: Dict(pair:Tuple, weight:float)       
-def CompareOCFM(conformed,conforming,weight): # parameters are ocfm
+def CompareOCFM(conformed,conforming,weight=None): # parameters are ocfm
     nonconflicttotal = 0
     conform = 0
     seq = 0
@@ -53,6 +53,10 @@ def CompareOCFM(conformed,conforming,weight): # parameters are ocfm
     for ot,ocfm in conformed.items():
         activities = sorted(list(set(activities)|set(ocfm['activities'])))
     allele = list(itertools.product(activities,activities))
+    if weight is None:
+        weight = {}
+        for ele in allele:
+            weight[ele] = 1
     #total = len(list(conformed['activities'])**2
     conflictele = allele
                 
@@ -165,6 +169,7 @@ def Learningweight(ocel_list,activities,epoch=1,rate=0.2,weightdelta=0.001,learn
     return fitnessweight, precisionweight
 
 def Lossfunction(pred,tar,variant='squared error'):
+    # the error loss function cannot be a-b!,where the minimum value is not 0!!!
     if variant == 'squared error':
         return 1/2*(pred-tar)**2
     else:

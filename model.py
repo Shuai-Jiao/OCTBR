@@ -8,7 +8,7 @@ from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.objects.log.ocel import OCEL
 from ocpa.objects.log.variants.table import Table
 from ocpa.objects.log.variants.graph import EventGraph
-import ocpa.objects.log.converter.versions.df_to_ocel as obj_converter
+import ocpa.objects.log.converter.versions.csv_to_ocel as obj_converter
 import ocpa.objects.log.variants.util.table as table_utils
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
