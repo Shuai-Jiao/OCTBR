@@ -24,6 +24,7 @@ ocel =  pm4py.read_ocel(path)
 #pm4py.view_ocpn(model, format="png")
 #ocelocpa = solve_ot_syntaxerror(path,prefixcsv+pathlist[2]+'processed'+suffixcsv)
 ocelocpa = ocel_import_factory.apply(path)
+print("ocfmlearning parameter:",ocelocpa.parameters)
 ocpnocpa = ocpn_discovery_factory.apply(ocelocpa, parameters={"debug": False})
 ocpnpm4py = PNtranslate_OCPA2PM4PY(ocpnocpa)
 #print(EvalOCFM(OCEL2OCFM(ocel),OCPN2OCFM(decomposeOCPN(ocpnpm4py))))
@@ -32,6 +33,6 @@ print('start learning----ß')
 traininglist = create_training_set(ocelocpa)
 '''for ocel in traininglist:
     print('number of variants:',len(ocel.process_executions),'\n------',ocel.process_executions)'''
-Learningweight(traininglist,list(ocelocpa.obj.activities))
+#Learningweight(traininglist,list(ocelocpa.obj.activities))
 
 

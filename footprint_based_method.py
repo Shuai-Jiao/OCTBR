@@ -13,6 +13,9 @@ import sympy as sp
 from preprocessing import create_training_set
 from model import decomposeOCPN
 from translation import ELtranslate_OCPA2PM4PY, PNtranslate_OCPA2PM4PY
+import networkx as nx
+from itertools import groupby
+import itertools
 
 def OCEL2OCFM(ocel):
     otlist = pm4py.ocel_get_object_types(ocel)
@@ -188,3 +191,4 @@ def Evaluation(ocel,ocpn,threshold = 0.05):
     #gview.view(gviz2)
     result = EvalOCFM(ocfmlog,ocfmmodel)
     return result
+

@@ -149,6 +149,7 @@ def create_training_set(ocel,fraction=None,iteration=None):
         #index = i*num+j
         processes = [trainingID[offset+i] for i in range(num)]
         aggregateprocess = list(chain(*processes))
+        print('The type of is:',type(aggregateprocess),type(aggregateprocess[0]))
         print('length of the process~~~',[len(ele) for ele in processes])
         filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(aggregateprocess)]
         # convert to ocel format
@@ -196,11 +197,14 @@ def extract_sublog(ocel,storepath=None):
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
     if not storepath is None:
         ocpaexporter(pandas_to_ocel(sublog,ocel.parameters),storepath)
+    print('parameters in extract_sublog:',ocel.parameters)
     return pandas_to_ocel(sublog,ocel.parameters)
 
 def pandas_to_ocel(df,parameter):
+    print("parameter in pandas_to_ocel:",parameter)
     log = Table(df, parameters = parameter)
-    obj = obj_converter.apply(df)
+    obj = obj_converter.apply(df,parameters = parameter)
+    print('obj type:',type(obj))
     graph = EventGraph(table_utils.eog_from_log(log))
     #logset.append(OCEL(log, obj, graph, ocel.parameters))
     #print('number of events~~~',len(obj.raw.events))
@@ -254,3 +258,93 @@ def parse_sublog(path):
     else:
         raise ValueError('Not with sublog suffix')
     return ocel
+
+def filter_process_execution(ocel,process_execution_list):
+    concatenation = []
+    for process_execution in process_execution_list:
+        concatenation.extend(process_execution)
+    filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(concatenation)]
+    return pandas_to_ocel(filteredlog,ocel.parameters)
+
+def pandas_to_ocel(df,parameter):
+    log = Table(df, parameters = parameter)
+    obj = obj_converter.apply(df,parameters = parameter)
+    graph = EventGraph(table_utils.eog_from_log(log))
+    #logset.append(OCEL(log, obj, graph, ocel.parameters))
+    #print('number of events~~~',len(obj.raw.events))
+    return OCEL(log, obj, graph, parameter)
+
+def get_log_attribute(ocel):
+    result = {}
+    activities_sequence = []
+    involvingobjects = ocel.process_execution_objects
+    solvingobjects = [x for ele in involvingobjects for x in ele]
+    objectlist = list(set([x for ele in involvingobjects for x in ele]))
+    process_execution = ocel.process_executions
+    for execution in process_execution:
+        processlist = []
+        for event in execution:
+            processlist.append(ocel.get_value(event,ocel.parameters['act_name']))
+        activities_sequence.append(processlist)
+        
+    result['activities sequence']=activities_sequence
+    result['object list']=objectlist
+    result['solvingobjects']=solvingobjects
+    result['variants']=ocel.variants
+    result['variant frequency']=ocel.variant_frequencies
+    result['variant graphs']=ocel.variant_graphs
+    result['variant dict']=ocel.variants_dict
+    return result
+
+def filter_process_execution(ocel,start=None,end=None,store=False,storepath=None):
+    process_execution = ocel.process_executions
+
+    if start == None:
+        start = 0
+    if end == None :
+        end = len(process_execution)-1
+    if start<0 or end>len(process_execution)-1:
+        return ValueError('the start or the end index exceeds the range')
+    
+    process_execution_list = process_execution[start:end]
+    concatenation = []
+    for process_execution in process_execution_list:
+        concatenation.extend(process_execution)
+    filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(concatenation)]
+    filteredocel = pandas_to_ocel(filteredlog,ocel.parameters)
+    if store:
+        ocpaexporter(filteredocel,storepath)
+    return filteredocel
+
+def get_log_information(ocel):
+    result = {}
+    activities_sequence = []
+    involvingobjects = ocel.process_execution_objects
+    solvingobjects = [x for ele in involvingobjects for x in ele]
+    objectlist = list(set([x for ele in involvingobjects for x in ele]))
+    process_execution = ocel.process_executions
+    for execution in process_execution:
+        processlist = []
+        for event in execution:
+            processlist.append(ocel.get_value(event,ocel.parameters['act_name']))
+        activities_sequence.append(processlist)
+    objectsnumber = sum([len(event.omap) for event in ocel.obj.raw.events.values()])
+    
+    result['number of events']=sum([len(ele) for ele in process_execution])
+    result['number of (solving) objects']=objectsnumber
+    result['activities sequence']=activities_sequence
+    result['object list']=objectlist
+    result['solvingobjects']=solvingobjects
+    result['variants']=ocel.variants
+    result['variant frequency']=ocel.variant_frequencies
+    result['variant graphs']=ocel.variant_graphs
+    result['variant dict']=ocel.variants_dict
+    return result
+
+def get_model_information(ocpn):
+    result = {}
+    result['number of places']=len(ocpn.places)
+    result['number of transitions']=len(ocpn.transitions)
+    result['number of silent transitions']=len([tran for tran in ocpn.transitions if tran.silent])
+    result['number of arcs']=len(ocpn.arcs)
+    return result

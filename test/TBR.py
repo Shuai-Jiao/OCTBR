@@ -28,7 +28,7 @@ datalist = ['transfer_order','github_pm4py','o2c','p2p','recruiting','running-ex
 suffix1 = '_sublog.jsonocel'
 suffix2 = ".jsonocel"
 
-for data in datalist[-2:]:
+for data in datalist[-2:-1]:
     #ocel = solve_ot_syntaxerror(prefix1+data+suffix,prefix2+storedpath[i]+suffix)
     #ocel = extract_sublog(ocel)
     path = parent_dir+prefix1+data+suffix2

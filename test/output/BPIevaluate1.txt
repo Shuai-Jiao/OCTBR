@@ -1,0 +1,4 @@
+-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/FilteredBPI/BPI1to2executionprocess.jsonocel-----
+                   ----information-------            Number of solving objects:62
+            Number of solving events:41
+            Number of involving objects 11
