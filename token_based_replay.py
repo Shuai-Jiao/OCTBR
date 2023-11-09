@@ -172,7 +172,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                 if obj in marking[arc.source]:
                     #fire all possible token
                     #marking_copy = copy.deepcopy(marking[arc.source])
-                    marking[arc.source].remove(obj)
+                    marking[arc.source].remove(obj,multiplicity=1)
                     missing = False
                     c += 1
                 #Check whether any possible marking triggered by silence meet the condition
@@ -181,9 +181,9 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     #print(marking[Findsilencepredecessor(obj,arc.source,marking)], obj,'---',Findsilencepredecessor(obj,arc.source,marking),arc.source.name)
                     #print(Findsilencepredecessor(obj,arc.source,marking))
                     #Consider the case that the predecessor is an initial place
-                    marking[silencepredecessor].remove(obj)
+                    marking[silencepredecessor].remove(obj,multiplicity=1)
                     #marking[arc.source].add(obj)
-                    possibleplace[arc.source].remove(obj)
+                    possibleplace[arc.source].remove(obj,multiplicity=1)
                     c += 1
                     missing = False
                 #Consider we are now at the semi initial places, then initialize the missing token!
@@ -211,7 +211,7 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
                     #print(arc.target.object_type,obj)
                     #Initializemarking(marking,arc.target)
                     if obj in marking[arc.target]:
-                        marking[arc.target].remove(obj)
+                        marking[arc.target].remove(obj,multiplicity=1)
                     c += 1
     # determine whether the remaining tokens can reach the end by silence
     for k in marking.keys():
@@ -256,7 +256,9 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
         place_dict[pl.name]=pl
     for tr in ocpn.transitions:
         transition_dict[tr.name]=tr
-    
+
+    dg = abstract_ocpn_to_DG(ocpn)
+    print(f'the DG is {nx.to_dict_of_dicts(dg)}')
     #Build up the initial places of each ot
     for ot in ocpn.object_types:
         initial_place[ot] = set()
@@ -265,29 +267,67 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
         marking[pl] = Multiset()
         if pl.initial:
             initial_place[pl.object_type].add(pl)
-
+    r_places = set()
     #print('marking:',marking.keys(),'\n',initial_place)
+
+    #extract all the started transition
+    '''initialization = {}
+    non_silent_transition = [tr for tr in ocpn.transitions if not tr.silent]
+    for tr in non_silent_transition:
+        for arc in tr.in_arcs:
+            if arc.source.initial:
+                if tr in initialization.keys():
+                    initialization[tr].add(arc.source)
+                else:
+                    initialization[tr] = set()
+                    initialization[tr].add(arc.source)'''
+        
     for i,unsorted_process in enumerate(process_execution):
         print(f'Progress: process id {i} from {len(process_execution)}')
         process = sort_process_execution(unsorted_process,event_dict)
-        print(f'the process execution is {[event.act for event in process]}')
-        #initialize the start place with the involving objects        
+        #print(f'the process execution is {[event.act for event in process]}')
+
+        #check whether the previous marking is clean
+        if sum([len(marking[pl]) for pl in ocpn.places]):
+            print(f'the uncleared marking is {marking}')
+            raise ValueError('the marking is not clean')
+        
+        #initialize the start place with the involving objects
+        # it is not guaranteed that the object only occurred once!!!        
         for obj in process_execution_object[i]:
+            if len(initial_place[obj[0]]) > 1:
+                raise ValueError('the start place is not unique!')
             for start_place in initial_place[obj[0]]:
                 #print('type',type(obj[1]))
                 marking[start_place].add(obj)
-                #marking[start_place].add('3')
-                
+                #marking[start_place].add('3')                
                 p += 1
+        #token_set = Multiset()
+        
         #start replay all the events in a process 
         for event in process:
-            act = event.act
+            #act = event.act
             obj_list = [(object_dict[event_id].type,event_id) for event_id in event.omap]
             #print(f'objlist {obj_list}')
-            for tr in ocpn.transitions:
+            '''for tr in ocpn.transitions:
                 if tr.name == act:
-                    curr_tr = tr   
+                    curr_tr = tr'''  
+            #BE AWARE! Considering the case that the activity not in the model!!!!
+            if event.act in transition_dict.keys():
+                curr_tr = transition_dict[event.act]
+            else:
+                continue
+
+            '''if curr_tr in initialization.keys():
+                for start_place in initialization[curr_tr]:
+                    initializing_object = Multiset([obj for obj in obj_list if obj[0]==start_place.object_type])
+                    marking[start_place] = marking[start_place] + initializing_object
+                            
+                    token_set = token_set + initializing_object
+                    p += len(initializing_object)'''
             #print(f'~~~~~the current transition name is :{curr_tr.name}')
+            
+
             
             #debugi = 0         
             for obj in obj_list:
@@ -299,7 +339,7 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                 postset = [arc.target for arc in curr_tr.out_arcs if arc.target.object_type == obj[0]]
 
                 if handle_silence == 'backward_replay':                
-                    p0,c0,m0,missing_place = backward_replay3(curr_tr,marking,obj)
+                    p0,c0,m0,_ = backward_replay3(curr_tr,marking,obj)
                     #not necessary only miss one token
                     '''if obj not in marking[arc.source] and is_missing:
                         m += 1
@@ -309,64 +349,30 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                         c += 1
                     else:
                         c += 1'''
-                    #print(f'missing place {missing_place}')
-                    for pl in missing_place:
-                        marking[pl].add(obj)
-                    p += p0
-                    c += c0
-                    m += m0
-                    #print(f'missing_place: {missing_place}, pcm:{[p,c,m]}')
-                    
+                    #print(f'missing place {missing_place}')                                       
+                    #print(f'missing_place: {missing_place}, pcm:{[p,c,m]}')                    
                 elif handle_silence == 'shortest_path':
-                    dg = abstract_ocpn_to_DG(ocpn)
+                    dg_copy = copy.deepcopy(dg)        
+                    parameter = {'preset':preset,'transition_dict':transition_dict,'place_dict':place_dict}
+                    p0,c0,m0,_ = shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
                     #enumerate all the possible combination
-                    no_path = False
-                    while not no_path:
-                        
-                        #all the place miss one token
-                        gamma_list = [pl for pl in preset if not obj in marking[pl]]
-                        #all the place contain one token that not needed
-                        lambda_list = [pl for pl in ocpn.places-set(preset) if obj in marking[pl]]
-                        search_pairs = [(x,y) for x in lambda_list for y in gamma_list]
-
-                        no_path = True
-                        #dg should be deep copied!!!
-                        for pair in search_pairs:
-                            dg_copy = copy.deepcopy(dg)
-                            path = find_shortest_executable_path(ocpn,marking,dg_copy,pair[0],pair[1],obj)
-                            if path == None:
-                                continue
-                            else:
-                                silent_sequence = []
-                                for i in range(len(path)-1):
-                                    endnode1 = dg.nodes[path[i]]
-                                    endnode2 = dg.nodes[path[i+1]]
-                                    tr_name = dg.get_edge_data(endnode1,endnode2).get('label')
-                                    silent_sequence.append(transition_dict[tr_name])
-                                p0,c0 = execute_silent_sequence(silent_sequence,marking,obj)
-                                no_path = False
-                                break
-                    m0 = 0
-                    for pl in preset:
-                        if not obj in marking[pl]:
-                            m0 += 1
-                            marking[pl].add(obj)
                     
 
-                
-                #execute the current transition
-                #print(f'presets of the current transition: {[pl.name for pl in preset]}')
+                p += p0
+                c += c0
+                m += m0
+
+                #execute the current transition    
                 for pl in preset:
                     #print(pl.name,obj,marking[pl])
                     #the problem is that the marking[arc,source] is empty
-
                     #only remove the object, which the same object type
-                    marking[pl].remove(obj)
+                    marking[pl].remove(obj,multiplicity=1)
                 for pl in postset:
                     marking[pl].add(obj)
                 c += len(preset)
                 p += len(postset)
-
+                #print(f'transition {curr_tr} is executed successfully')
             '''for arc in curr_tr.out_arcs:
                 for obj in obj_list:
                     if arc.target.object_type == obj.type:
@@ -378,35 +384,133 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                 c += 1'''
         #at the end, check whether remaining
         final_places = [pl for pl in ocpn.places if pl.final]
-        if handle_silence == 'backward_replay':
-            remaining_places = [pl for pl in ocpn.places-set(final_places) if len(marking[pl])>0] 
-            remaining_objects = set().union(*[marking[pl] for pl in remaining_places])           
-            for obj in remaining_objects:                
-                final = [f for f in final_places if f.object_type==obj[0]]
-                if len(final)==1:
-                    p1,c1,_,_ = backward_replay3(final[0],marking,obj)
-                    #r1 = len([pl for pl in ocpn.places-final_places if obj in marking[pl]])
-                else:
-                    return ValueError('the final place is not unique for a certain object type!')
-                p += p1
-                c += c1
-            r = sum([len(marking[pl]) for pl in ocpn.places-set(final_places)])
-            #clear all the final places            
-            for pl in final_places:
-                c += len(marking[pl])
-                marking[pl] = Multiset()
+        remaining_places = [pl for pl in ocpn.places-set(final_places) if len(marking[pl])>0] 
+        remaining_objects = set().union(*[marking[pl] for pl in remaining_places])
+        #print(f'the middle pmcr is: {p,c,m,r,p+m,c+r}')
 
-            remain_number = sum([len(marking[pl]) for pl in ocpn.places])
-            #print(f'the number of remaining objects is: {remain_number}')
+        for obj in remaining_objects:
+        #for obj in list(token_set):
+            obj_final_places = [pl for pl in ocpn.places if pl.final and pl.object_type==obj[0]]
+            if handle_silence == 'backward_replay':           
+                                
+                    #final = [f for f in final_places if f.object_type==obj[0]]
+                    if len(obj_final_places)==1:
+                        p1,c1,m1,_ = backward_replay3(*obj_final_places,marking,obj)
+                        #r1 = len([pl for pl in ocpn.places-final_places if obj in marking[pl]])
+                    else:
+                        return ValueError('the final place is not unique for a certain object type!')
+                    
+                
 
-        elif handle_silence == 'shortest_path':
-                print('delete this message')
-            
+                #remain_number = sum([len(marking[pl]) for pl in ocpn.places])
+                #print(f'the number of remaining objects is: {remain_number}')
+
+            elif handle_silence == 'shortest_path':
+                    #print('delete this message')
+                    dg_copy = copy.deepcopy(dg)
+                    #path = find_shortest_executable_path(ocpn,marking,dg_copy,pair[0],pair[1],obj)
+                    
+                    parameter = {'preset':obj_final_places,'transition_dict':transition_dict,'place_dict':place_dict}
+                    p1,c1,m1,_ = shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
+            p += p1
+            c += c1
+            if m1>0:
+                raise ValueError('the end place missing is not 0!')
+            #m += m0
+        #r += sum([len(marking[pl]) for pl in ocpn.places-set(final_places)])
+
+        for pl in ocpn.places-set(final_places):
+            r += len(marking[pl])
+            marking[pl] = Multiset()
+        '''for pl in ocpn.places-set(final_places):
+            if len(marking[pl])>0:
+                r_places.add(pl.name)'''
+        #clear all the final places            
+        for pl in final_places:
+            c += len(marking[pl])
+            marking[pl] = Multiset()
+    #print(f'the remaining places: {remaining_places}')                
     print('pcmr:',p,c,m,r,p+m,c+r)
     if c == 0 or p == 0:
         raise ValueError('no consumed or produced tokens')
     result = {'fitness':1/2*(1-m/c)+1/2*(1-r/p),'p':p,'c':c,'m':m,'r':r}
     return result
+
+def shortest_path_backward_replay(ocpn,dg,marking,obj,parameter):
+    #the preset already considered the object type
+    preset = parameter['preset']
+    transition_dict = parameter['transition_dict']
+    place_dict = parameter['place_dict']
+    #all the place miss one token
+    gamma_list = [pl.name for pl in preset if not obj in marking[pl] and pl.object_type==obj[0]]
+    #all the place contain one token that not needed
+    lambda_list = [pl.name for pl in ocpn.places-set(preset) if obj in marking[pl]]
+    search_pairs = [(x,y) for x in lambda_list for y in gamma_list]
+    interrupt = True if len(gamma_list)==0 or len(lambda_list)==0 else False
+    p,c,m,silent_sequence = 0,0,0,None
+    marking_copied0={}
+    for key,value in marking.items():
+        marking_copied0[key] = value
+    while not interrupt:               
+        shortest_paths_list = []
+        #dg should be deep copied!!!
+
+        
+        #print(f'line411 whether the marking changed: {marking==marking_copied0}')
+        #item1 =  place_dict['item1']
+        #order7 = place_dict['order7']
+        #print(f'line413 marking item1: {marking[item1]}; marking order7: {marking[order7]}')
+        #print(f'the search pair: {search_pairs}')
+        for pair in search_pairs:
+            dg_copy = copy.deepcopy(dg)
+            #collect all the shortest path and find the shortest one
+            #parameter2 = {'transition_dict':transition_dict}
+           
+            path = find_shortest_executable_path(marking,dg_copy,pair[0],pair[1],obj,parameter)
+            if not path is None:
+                shortest_paths_list.append(path)
+            else:
+                #else means that the DG doesn't contain the start node or the end node\
+                #which means that the start or the end doesn't have silence
+                interrupt = True
+
+        if len(shortest_paths_list) == 0:
+            break
+            print('no executable path in all of the possible combinations')
+        
+        #print(f'line429 whether the marking changed: {marking==marking_copied0}')
+        #print(f'line429 marking item1: {marking[item1]}; marking order7: {marking[order7]}')
+        #print(f'line429 marking_copied0 item1: {marking_copied0[item1]}; marking order7: {marking_copied0[order7]}')    
+        sorted_shortest_paths_list = sorted(shortest_paths_list,key=lambda path:len(path))
+        shortest_path = sorted_shortest_paths_list[0]
+        #print(f'the shortest path is {shortest_path}')
+        silent_sequence = []
+        for i in range(len(shortest_path)-1):
+            #endnode1 = dg.nodes[shortest_path[i]]
+            #endnode2 = dg.nodes[shortest_path[i+1]]
+            #print(f'the endnodes are {shortest_path[i],shortest_path[i+1]} and the type is {type(shortest_path[i+1])}')
+            tr_name = dg.get_edge_data(shortest_path[i],shortest_path[i+1]).get('label')
+            silent_sequence.append(transition_dict[tr_name])
+        #print(f'the silent_sequence is {silent_sequence}')
+        #print(f'whether the marking changed: {marking==marking_copied0}')
+        #print(f'line447 marking item1: {marking[item1]}; marking order7: {marking[order7]}')
+        print(f'the SP silent sequence is {silent_sequence}')
+        p,c = execute_silent_sequence(silent_sequence,marking,obj)
+        gamma_list = [pl.name for pl in preset if not obj in marking[pl] and pl.object_type==obj[0]]
+        #all the place contain one token that not needed
+        lambda_list = [pl.name for pl in ocpn.places-set(preset) if obj in marking[pl]]
+        search_pairs = [(x,y) for x in lambda_list for y in gamma_list]
+
+        if len(gamma_list) == 0 or len(lambda_list) == 0:
+            interrupt = True
+    
+    is_final = len(preset) == 1 and preset[0].final
+    for pl in preset:
+        if not obj in marking[pl] and not is_final:
+            m += 1
+            marking[pl].add(obj)
+    
+    return p,c,m,silent_sequence
 
 def which_missing(transition,object,marking):
     missing_places = []
@@ -597,10 +701,10 @@ def Initializemarking(marking,key):
 def abstract_ocpn_to_DG(ocpn):
     DG = nx.DiGraph()
     node = set()
-    for tr in ocpn.transitions:
-        if tr.silent:
-            endpoint_start = [arc.source for arc in tr.in_arcs]
-            endpoint_end = [arc.target for arc in tr.out_arcs]
+    silent_transition = [tr for tr in ocpn.transitions if tr.silent]
+    for tr in silent_transition:       
+        endpoint_start = [arc.source for arc in tr.in_arcs]
+        endpoint_end = [arc.target for arc in tr.out_arcs]
         #group the nodes with the same object type
         grouped_start = {key: list(group) for key, group in itertools.groupby(endpoint_start, key=lambda obj: obj.object_type)}
         grouped_end = {key: list(group) for key, group in itertools.groupby(endpoint_end, key=lambda obj: obj.object_type)}
@@ -617,46 +721,75 @@ def abstract_ocpn_to_DG(ocpn):
                         if ed[1] not in node:
                             node.add(ed[1])
                             DG.add_node(ed[1])
-                        DG.add_edge(ed[0],ed[1],label='tr.name')
+                        DG.add_edge(ed[0],ed[1],label=tr.name)
 
     return DG
 
 def find_shortest_path(DG,start,end):
     if start not in list(DG.nodes) or end not in list(DG.nodes):
-        return ValueError('the start or the end node is not defined')
-    return nx.astar_path(DG,start,end)
+        '''print(f'the start or the end node is not defined; the start: {start}\
+              ,the end: {end}, and the DG.nodes: {list(DG.nodes)}')'''
+        return None
+    #print(f'line666 the DG is {nx.to_dict_of_dicts(DG)}')
+    try:
+        #nx.astar_path(DG,start,end) can only return an existing path! no None return.
+        return nx.astar_path(DG,start,end)
+    except:
+        #print(f'no path between {start} and {end}')
+        return None
 
-def verify(ocpn,marking,path,obj):
+#consider the object type!
+#You just verify without execution???
+def verify(dg,marking,path,obj,parameter):
+    #since marking_copy = copy.deepcopy(marking) cannot be used because of PLACE no copy defined!
+    marking_copy = {}
+    for key,value in marking.items():
+        marking_copy[key]=copy.deepcopy(value)
+    
+    transition_dict = parameter['transition_dict']
+    place_dict = parameter['place_dict']
     enable = True
     unenable_edge = None
     for i in range(len(path[:-1])):
-        for pl in ocpn.places:
-            if pl.name == path[i]:
-                front = pl
-            if pl.name == path[i+1]:
-                back = pl
-        for tr in ocpn.transitions:
-            if tr.silent and \
-            front in [arc.source for arc in tr.in_arcs] and\
-            back in [arc.target for arc in tr.out_arcs]:
-                for arc in tr.in_arcs:
-                    for mark in marking:
-                        if arc.source == mark[0] and obj not in mark[1]:
-                            enable = False
-                            unenable_edge = (path[i],path[i+1])
+        for u, v, data in dg.edges(data=True):
+            if u == path[i] and v == path[i+1]:
+                tr_name = data.get("label")
+                break
+        curr_tr = transition_dict[tr_name]
+        preset = [arc.source for arc in curr_tr.in_arcs if arc.source.object_type==obj[0]]
+        postset = [arc.target for arc in curr_tr.out_arcs if arc.target.object_type==obj[0]]
+        if any([obj not in marking_copy[pl] for pl in preset]):
+            #print(f'line718 obj is {obj}, marking is {[marking_copy[arc.source] for arc in curr_tr.in_arcs if arc.source.object_type==obj[0]]}')  
+            '''print(f'line718 the unverified path {path}, the unverified tr: {curr_tr.name}\
+                  the marking of the unverified place {marking[place_dict[path[i]]]}')'''         
+            enable = False
+            unenable_edge = (path[i],path[i+1])
+            return enable, unenable_edge
+        else:
+            for pl in preset:
+                marking_copy[pl].remove(obj,multiplicity=1)
+            for pl in postset:
+                marking_copy[pl].add(obj)
+    #print(f'the verified path is {path} with object {obj}')
     return enable, unenable_edge
 
 #Be aware of deepcopy DG
-def find_shortest_executable_path(ocpn,marking,DG,start,end,obj):
-    path = find_shortest_path(DG,start,end)
+def find_shortest_executable_path(marking,dg,start,end,obj,parameter):
+    place_dict = parameter['place_dict']
+    path = find_shortest_path(dg,start,end)
     if path == None:
         return None
-    verification, delete_edge = verify(ocpn,marking,path,obj)
+    verification, delete_edge = verify(dg,marking,path,obj,parameter)
+    
     if verification:
         return path
     else:
-        DG.remove_edge(*delete_edge)
-        return find_shortest_executable_path(ocpn,marking,DG,start,end,obj)
+        #print(f'the unverified path is {path}')
+        '''print(f'the verification: {verification}; obj is {obj}; deleted: {delete_edge}\
+          the marking of deleted point: {marking[place_dict[delete_edge[0]]]}')'''
+        #raise ValueError('a path cannot be verified')
+        dg.remove_edge(*delete_edge)
+        return find_shortest_executable_path(marking,dg,start,end,obj,parameter)
 
 # define a higher level data structure
 class BackwardGraph(object):
@@ -782,6 +915,7 @@ class BackwardGraph(object):
                         no_update = False
 
     #the function won't extract the root label
+    #this function extract all the possible silent sequence for the preset of the current transition
     def extract_silent_sequence(self):       
         '''if self.root.color == 'green':
             return self.get_path_above(self.root)
@@ -861,6 +995,11 @@ class BackwardGraph(object):
 
 #please consider the object type, thank you
 def execute_silent_sequence(silent_sequence,marking,obj):
+    #print(f'the executed silent sequence is: {[tr.name for tr in silent_sequence]}')
+    marking_copied = {}
+    for key,value in marking.items():
+        marking_copied[key]=value
+
     p,c = 0,0
     #we added None to avoid duplication for node label
     silent_sequence = [ele for ele in silent_sequence if not ele == None]   
@@ -870,15 +1009,17 @@ def execute_silent_sequence(silent_sequence,marking,obj):
         if all([obj in marking[pl] for pl in preset]):
             c += len(preset)
             for pl in preset:
-                marking[pl].remove(obj)
+                marking[pl].remove(obj,multiplicity=1)
             for pl in postset:
                 marking[pl].add(obj)
             p += len(postset)           
         else:
-            '''print(f'~~~~~~~~~~a silent transition cannot be executed: {silence.name,silence.label}\
+            
+            #print(f'line956 is the marking get changed: {marking==marking_copied}')
+            raise ValueError(f'~~~~~~~~~~a silent transition cannot be executed: {silence.name,silence.label}\
                   the silence sequence is: {[tr.name for tr in silent_sequence]}\
                     the preset is: {preset}, the object is {obj}\
-                        the marking of the preset is {[marking[pl] for pl in preset]}')'''
+                        the marking of the preset is {[marking[pl] for pl in preset]}')
             return None
     return p,c
 
@@ -1027,6 +1168,7 @@ def backward_replay3(element,marking,object):
             print(f'the BST node and operator: {abstract.get_BST_label()}')'''
         #print(f'get BST info: {abstract.get_BST_label()}')
         p,c = execute_silent_sequence(silent_sequence,marking,object)
+        print(f'BST silent sequence: {silent_sequence}')
 
     
 
@@ -1036,6 +1178,8 @@ def backward_replay3(element,marking,object):
     elif type(element)==objocpa.ObjectCentricPetriNet.Transition:
         missing = abstract.get_missing_node()
         m = len(missing)
+        for pl in missing:
+            marking[pl].add(object)
         '''if element.name == 'Pay Order' or element.name == 'Pick Item':
             print(f'---------Pay Order or Pick Item; the BST info: {abstract.get_BST_label()}, then tran: {element.name}')
     '''

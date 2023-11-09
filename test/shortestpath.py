@@ -19,28 +19,37 @@ from ocpa.objects.log.importer.ocel import factory as ocel_import_factory
 from ocpa.algo.discovery.ocpn import algorithm as ocpn_discovery_factory
 from ocpa.visualization.oc_petri_net import factory as ocpn_vis_factory
 import time
-from ocpa.algo.conformance.precision_and_fitness import evaluator as quality_measure_factory
 
-ocpnoutputpath=parent_dir+'/sample_logs/OCPN/BPI0to1ocpn.pkl'
-outputpath = parent_dir+'/test/output/BPIBSTreplay.txt'
+outputpath = parent_dir+'/test/output/BPIshortestreplay.txt'
+
+ocpnoutputpath=parent_dir+'/sample_logs/OCPN/order_process.pkl'
+#outputpath = parent_dir+'/test/output/BPIbackwardreplay.txt'
 with open(ocpnoutputpath, "rb") as file:
-    BPI0to1ocpn = pickle.load(file)
-#ocpn_vis_factory.save(ocpn_vis_factory.apply(BPI0to1ocpn), "./BPI0to1ocpn.png")
+    order_process_ocpn = pickle.load(file)
+
+#ocpn_vis_factory.save(ocpn_vis_facto
+#ocpn_vis_factory.save(ocpn_vis_factory.apply(order_process_ocpn), "./order_process_ocpn.png")
 with open(outputpath, 'w') as file:
     file.write(f"--------New File--------")
 
 '''path = parent_dir+"/sample_logs/jsonocel/order_process.jsonocel"
 ocel = ocel_import_factory.apply(path)
 print(ocel is None)
-ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False}) 
+#ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False}) 
 time0= time.time() 
-result = OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward_replay")
+result = OCtokenbasedreplay2(ocel,order_process_ocpn,handle_silence="shortest_path")
 time1= time.time() 
 with open(outputpath, 'a') as file:
         file.write(f"-----Start {path}-----\n\
-                   ----Backward replay OCTBR-------\
+                   ----Shortest path replay OCTBR-------\
             evaluation:{result}\n\
             time:{time1-time0}\n")'''
+
+
+ocpnoutputpath=parent_dir+'/sample_logs/OCPN/BPI0to1ocpn.pkl'
+
+with open(ocpnoutputpath, "rb") as file:
+    BPI0to1ocpn = pickle.load(file)
 
 prefix = parent_dir+'/sample_logs/jsonocel/FilteredBPI/'
 filteredlist = [(1,2),(2,3),(3,10),(10,50)\
@@ -53,10 +62,10 @@ for ele in filteredlist[0:1]:
     print(ocel is None)
     #ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
     time0= time.time() 
-    result = OCtokenbasedreplay2(ocel,BPI0to1ocpn,handle_silence="backward_replay")
+    result = OCtokenbasedreplay2(ocel,BPI0to1ocpn,handle_silence="shortest_path")
     time1= time.time() 
     with open(outputpath, 'a') as file:
         file.write(f"-----Start {path}-----\n\
-                   ----Backward replay OCTBR-------\
+                   ----Shortest path replay OCTBR-------\
             evaluation:{result}\n\
             time:{time1-time0}\n")
