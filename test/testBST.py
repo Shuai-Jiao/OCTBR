@@ -3,15 +3,6 @@ import os
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.join(current_dir, "..")
 sys.path.append(parent_dir)
-#simply sys.path.append(".") doesn't always work!!! not work in cluster.
-
-#sys.path.append(".")
-#import pm4py.objects
-#print('import ~~~pm4py.objects')
-#import pm4py.objects.petri_net
-#print('import ~~~pm4py.objects.petri_net')
-#from model import Flowermodel, create_flower_model, Restrictedmodel
-#from preprocessing import PreprocessCSV, solve_ot_syntaxerror, parse_sublog
 import pickle
 from translation import PNtranslate_OCPA2PM4PY, PNtranslate_PM4PY2OCPA, ELtranslate_OCPA2PM4PY
 from token_based_replay import OC_Conformance, OCtokenbasedreplay, OCtokenbasedreplay2
@@ -47,16 +38,17 @@ filteredlist = [(1,2),(2,3),(3,10),(10,50)\
              ,(50,150),(150,550),(550,1550)]
 
     
-for ele in filteredlist[0:1]:
+for ele in filteredlist[0:3]:
     path = prefix+f"BPI{ele[0]}to{ele[1]}executionprocess.jsonocel"
     ocel = ocel_import_factory.apply(path)
     print(ocel is None)
     #ocpn = ocpn_discovery_factory.apply(ocel, parameters={"debug": False})
     time0= time.time() 
-    result = OCtokenbasedreplay2(ocel,BPI0to1ocpn,handle_silence="backward_replay")
+    result,information = OCtokenbasedreplay2(ocel,BPI0to1ocpn,"BST",True)
     time1= time.time() 
     with open(outputpath, 'a') as file:
         file.write(f"-----Start {path}-----\n\
                    ----Backward replay OCTBR-------\
             evaluation:{result}\n\
+            information:{information}\n\
             time:{time1-time0}\n")

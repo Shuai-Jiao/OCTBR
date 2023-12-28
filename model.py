@@ -112,7 +112,7 @@ def Restrictedmodel(ocel):
     filteredlog = ocel.log.log[ocel.log.log['event_id'].isin(list(shortestvar))]
     #convert to ocel format
     log = Table(filteredlog, parameters = ocel.parameters)
-    obj = obj_converter.apply(filteredlog)
+    obj = obj_converter.apply(filteredlog, parameters = ocel.parameters)
     graph = EventGraph(table_utils.eog_from_log(log))
     result = OCEL(log, obj, graph, ocel.parameters)
     #"debug" has to be false, otherwise the print will occur

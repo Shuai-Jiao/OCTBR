@@ -22,11 +22,11 @@ import time
 
 outputpath = parent_dir+'/test/output/BPIshortestreplay.txt'
 
-ocpnoutputpath=parent_dir+'/sample_logs/OCPN/order_process.pkl'
+'''ocpnoutputpath=parent_dir+'/sample_logs/OCPN/order_process.pkl'
 #outputpath = parent_dir+'/test/output/BPIbackwardreplay.txt'
 with open(ocpnoutputpath, "rb") as file:
     order_process_ocpn = pickle.load(file)
-
+'''
 #ocpn_vis_factory.save(ocpn_vis_facto
 #ocpn_vis_factory.save(ocpn_vis_factory.apply(order_process_ocpn), "./order_process_ocpn.png")
 with open(outputpath, 'w') as file:
@@ -56,7 +56,7 @@ filteredlist = [(1,2),(2,3),(3,10),(10,50)\
              ,(50,150),(150,550),(550,1550)]
 
     
-for ele in filteredlist[0:1]:
+for ele in filteredlist:
     path = prefix+f"BPI{ele[0]}to{ele[1]}executionprocess.jsonocel"
     ocel = ocel_import_factory.apply(path)
     print(ocel is None)

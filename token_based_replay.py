@@ -7,7 +7,13 @@ import networkx as nx
 from itertools import groupby
 import itertools
 import copy
+from ocpa.objects.log.ocel import ObjectCentricEventLog
+import pickle
+import os
 #ONLY accept pm4py format!
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(current_dir, "..")
+
 def OC_Conformance(ocpn,ocel,method='token-based',getprecision=False, weight = "average"):
     pndict, eldict, pnweight, elweight, fitdict, precdict = {}, {}, {}, {}, {}, {}
     pnfactor, elfactor = 0, 0
@@ -234,16 +240,139 @@ def OCtokenbasedreplay(ocpn,ocel,handle_silence=True):
     print('Running time (s):',end_time-start_time)
     return 1/2*(1-m/c)+1/2*(1-r/p)
 
-def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
+def caching(ocpn,object):
+    if object == 'BST':
+        BST = {}
+        object_type = ocpn.object_types
+        for tr in ocpn.transitions:
+            for ot in object_type:
+                #BST[tr] = build_backward_graph
+                abstract = BackwardGraph()
+                abstract.root = BackwardGraph.Operator(type='AND',transition=tr)
+                abstract.operators.add(abstract.root)
+                preset = [arc.source for arc in tr.in_arcs if arc.source.object_type==ot]        
+                for pl in preset:
+                    node = BackwardGraph.Node(state=pl,transition=None,end=True)
+                    abstract.nodes.add(node)
+                    abstract.connect_components(node,abstract.root)
+                while not len(abstract.extension_nodes) == 0:
+                    for n in abstract.extension_nodes:
+                        build_backward_graph(abstract,n)
+                #Since to build the BST, the nodes were colored, we have to color them back
+                for n in abstract.nodes:
+                    n.color = 'yellow'
+                BST[(tr,ot)] = abstract
+                print(f'22 Cached BST {(tr,ot)} nodes information: {[[n.name for n in BST[k].nodes] for k in BST.keys()]}')
+        for pl in [pl for pl in ocpn.places if pl.final]:
+            ot = pl.object_type
+            #final_place = element
+            #the root here is a residual element outwards the final place
+            abstract = BackwardGraph()
+            abstract.root = BackwardGraph.Operator(type='AND',label='residual end')
+            node = BackwardGraph.Node(state=pl,transition=None,end=True)
+            abstract.connect_components(node,abstract.root)
+            abstract.operators.add(abstract.root)
+            abstract.nodes.add(node)
+            while not len(abstract.extension_nodes) == 0:
+                    for n in abstract.extension_nodes:
+                        build_backward_graph(abstract,n)
+            #Since to build the BST, the nodes were colored, we have to color them back
+            for n in abstract.nodes:
+                n.color = 'yellow'
+            BST[(pl,ot)] = abstract
+        returned_value = BST
+        print(f'Cached BST nodes information: {[[n.name for n in BST[k].nodes] for k in BST.keys()]}')
+        return BST
+        
+    else:
+        raise ValueError(f'{object} is not defined for caching')
+
+def verify_cashed_BST(marking,obj,BST,execution=True):
+    
+    #BST_copy = copy.deepcopy(BST)
+
+    for n in BST.nodes:
+        if obj in marking[n.state]:
+            print(f'the obj {obj} is in place {n.state}')
+            n.color = 'green'
+            n.end = True
+            #the BST get changed!!!
+            '''n.inn = set()
+            n.end = True'''
+    for n in BST.nodes:
+        if n.end and n.color=='yellow':
+            n.color = 'red'
+    #print(f'Im in the color update')
+    #while BST.root.color == 'yellow':
+    BST.color_update()
+    print(f'the BST root is: {(BST.root.label,BST.root.type,BST.root.color)}\n\
+            root children: {[(x.state,x.color) for x in BST.root.inn]} \n\
+            the node color is: {[(n.state,n.color) for n in BST.nodes]}\n\
+            the operator color is: {[(o.label,o.color) for o in BST.operators]}')
+    #print(f'Im out the color update')
+    if execution == True:
+        silent_sequence = BST.extract_silent_sequence()
+        #this was done in execute_silent_sequence()
+        silent_sequence = [silence for silence in silent_sequence if not silence is None]
+        if silent_sequence == None:
+            p,c = 0,0
+        else:
+            print(f'the silent_sequence is: {silent_sequence}')
+            p,c = execute_silent_sequence(silent_sequence,marking,obj)
+
+        '''if not silent_sequence is None and not len(silent_sequence)==0:
+            outputpath = './test/output/BPIcacheddebug.txt'
+            with open(outputpath, 'a') as file:
+                file.write(f"silent sequence:{silent_sequence}\n\
+                        the node color is: {[(n.state,n.color) for n in BST.nodes]}\n\
+                the operator color is: {[(o.label,o.color) for o in BST.operators]}\n\
+                    obj:{obj}\n")'''
+    else:
+        silent_sequence = None
+        p,c = None, None
+    if BST.root.label == 'residual end':
+        m = 0
+        missing = []
+    else:
+        missing = BST.get_missing_node()
+        m = len(missing)
+        for pl in missing:
+            marking[pl].add(obj)
+        '''if element.name == 'Pay Order' or element.name == 'Pick Item':
+            print(f'---------Pay Order or Pick Item; the BST info: {abstract.get_BST_label()}, then tran: {element.name}')
+    '''
+    missing = {'missing places':missing,\
+            'missing object':obj,'silent sequence':silent_sequence}
+    
+    #the reason we didn't use BST_copy is because toooo tedious!!!\
+    #you have not only to define the copy() of BST but also the copy() of Place, Transition, Arc\
+    #Moreover you have to define the equality of them, otherwise 'pl in marking.key()' won't work!!!\
+    #in OCPA, it define equality using id(), no patience to go through...
+    #first reinitialize all the coloring from previous!!!
+    #Set the BST back
+    for n in BST.nodes|BST.operators:
+        n.color = 'yellow'
+        n.end = False
+    for n in BST.nodes:
+        if len(n.inn) == 0:
+            n.end = True
+        
+    return p,c,m,missing
+        
+
+def OCtokenbasedreplay2(ocel,ocpn,handle_silence="BST",token_flooding=False,cache=False):
     if type(ocpn) is not objocpa.ObjectCentricPetriNet:
         raise ValueError("The ocpn format is not well-defined in ocpa")
     eventdict = ocel.obj.raw.events
     acttrans = []
-    p,m,c,r = 0,0,0,0
+    p,m,c,r,f = 0,0,0,0,0
+    BST_time,shortest_path_time,token_flooding_time,caching_time = 0,0,0,0
+    S_components_time = 0
     #the tokens(objects) in the corresponding place
     #Multiset stores the set of string of the object ID
     marking: Dict[objocpa.Place,Multiset]
     marking = {}
+    frozen_map = {}
     initial_place = {}
     #group the ocel into process executions
     process_execution = ocel.process_executions
@@ -257,6 +386,14 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
     for tr in ocpn.transitions:
         transition_dict[tr.name]=tr
 
+    time0 = time.time()
+    if cache:
+        BST = caching(ocpn,'BST')
+    if token_flooding:
+        S_components = calculate_S_component(ocpn)
+    time1 = time.time()
+    S_components_time += time1-time0
+
     dg = abstract_ocpn_to_DG(ocpn)
     print(f'the DG is {nx.to_dict_of_dicts(dg)}')
     #Build up the initial places of each ot
@@ -265,6 +402,7 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
     for pl in ocpn.places:
         #print('line263',type(pl))
         marking[pl] = Multiset()
+        frozen_map[pl] = Multiset()
         if pl.initial:
             initial_place[pl.object_type].add(pl)
     r_places = set()
@@ -307,7 +445,7 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
         #start replay all the events in a process 
         for event in process:
             #act = event.act
-            obj_list = [(object_dict[event_id].type,event_id) for event_id in event.omap]
+            obj_list = [(object_dict[object_id].type,object_id) for object_id in event.omap]
             #print(f'objlist {obj_list}')
             '''for tr in ocpn.transitions:
                 if tr.name == act:
@@ -338,8 +476,19 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                 preset = [arc.source for arc in curr_tr.in_arcs if arc.source.object_type == obj[0]]
                 postset = [arc.target for arc in curr_tr.out_arcs if arc.target.object_type == obj[0]]
 
-                if handle_silence == 'backward_replay':                
-                    p0,c0,m0,_ = backward_replay3(curr_tr,marking,obj)
+                if handle_silence == 'BST':
+                    if cache:
+                        time0 = time.time()
+                        cached_BST = BST[(curr_tr,obj[0])]
+                        print(f'the current tr and obj are: {curr_tr.name} and {obj[1]}')
+                        p0,c0,m0,missing = verify_cashed_BST(marking,obj,cached_BST)
+                        time1 = time.time()
+                        BST_time += time1-time0
+                    else:
+                        time0 = time.time()                
+                        p0,c0,m0,missing = backward_replay3(curr_tr,marking,obj)
+                        time1 = time.time()
+                        BST_time += time1-time0
                     #not necessary only miss one token
                     '''if obj not in marking[arc.source] and is_missing:
                         m += 1
@@ -354,24 +503,47 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                 elif handle_silence == 'shortest_path':
                     dg_copy = copy.deepcopy(dg)        
                     parameter = {'preset':preset,'transition_dict':transition_dict,'place_dict':place_dict}
-                    p0,c0,m0,_ = shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
+                    time0 = time.time()
+                    p0,c0,m0,missing = shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
+                    time1 = time.time()
+                    shortest_path_time += time1-time0
                     #enumerate all the possible combination
-                    
+                else:
+                    raise ValueError(f'the silence handling method {handle_silence} is not defined')    
 
                 p += p0
                 c += c0
                 m += m0
-
+                if token_flooding:
+                    time0 = time.time()
+                    missing_places = missing['missing places']
+                    missing_object = missing['missing object']
+                    for pl in missing_places:
+                        TF_parameter = {'current_place':pl,'S_component':S_components}                       
+                        f0 = solve_token_flooding(ocpn,marking,frozen_map,obj,'S_component',TF_parameter)                        
+                        f += f0
+                    time1 = time.time()
+                    token_flooding_time += time1-time0
                 #execute the current transition    
                 for pl in preset:
                     #print(pl.name,obj,marking[pl])
                     #the problem is that the marking[arc,source] is empty
                     #only remove the object, which the same object type
+                    print(f'is marking correct: {marking[pl]}')
                     marking[pl].remove(obj,multiplicity=1)
                 for pl in postset:
                     marking[pl].add(obj)
+                if token_flooding:
+                    time0 = time.time()
+                    for pl in postset:
+                        TF_parameter = {'current_place':pl,'S_component':S_components}
+                        f0 = solve_token_flooding(ocpn,marking,frozen_map,obj,'S_component',TF_parameter)
+                        f += f0
+                    time1 = time.time()
+                    token_flooding_time += time1-time0
                 c += len(preset)
                 p += len(postset)
+                
                 #print(f'transition {curr_tr} is executed successfully')
             '''for arc in curr_tr.out_arcs:
                 for obj in obj_list:
@@ -388,17 +560,41 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
         remaining_objects = set().union(*[marking[pl] for pl in remaining_places])
         #print(f'the middle pmcr is: {p,c,m,r,p+m,c+r}')
 
+        
+        r2 = 0
+        debug_remaining1 = []
+        for pl in ocpn.places-set(final_places):
+            #r += len(marking[pl])
+            r2 += len(marking[pl])
+            if len(marking[pl]) > 0:
+                debug_remaining1.append((pl,marking[pl]))
+            #marking[pl] = Multiset()
+        #print(f'compare the r: before {r2} after {r3}')
+        print(f'the before remaining bindings are: {debug_remaining1}')
+
         for obj in remaining_objects:
         #for obj in list(token_set):
             obj_final_places = [pl for pl in ocpn.places if pl.final and pl.object_type==obj[0]]
-            if handle_silence == 'backward_replay':           
-                                
+            if len(obj_final_places) > 1:
+                raise ValueError('the end place is not unique for an object type')
+            if handle_silence == 'BST':
+                if cache:
+                    time0 = time.time()
+                    cached_BST = BST[(*obj_final_places,obj[0])]
+                    p1,c1,m1,missing = verify_cashed_BST(marking,obj,cached_BST)
+                    time1 = time.time()
+                    BST_time += time1-time0           
+                    
+                else:
+                    time0 = time.time()            
                     #final = [f for f in final_places if f.object_type==obj[0]]
                     if len(obj_final_places)==1:
                         p1,c1,m1,_ = backward_replay3(*obj_final_places,marking,obj)
                         #r1 = len([pl for pl in ocpn.places-final_places if obj in marking[pl]])
                     else:
                         return ValueError('the final place is not unique for a certain object type!')
+                    time1 = time.time()
+                    BST_time += time1-time0
                     
                 
 
@@ -406,12 +602,15 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
                 #print(f'the number of remaining objects is: {remain_number}')
 
             elif handle_silence == 'shortest_path':
+                    time0 = time.time()
                     #print('delete this message')
                     dg_copy = copy.deepcopy(dg)
                     #path = find_shortest_executable_path(ocpn,marking,dg_copy,pair[0],pair[1],obj)
                     
                     parameter = {'preset':obj_final_places,'transition_dict':transition_dict,'place_dict':place_dict}
                     p1,c1,m1,_ = shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
+                    time1 = time.time()
+                    shortest_path_time += time1-time0
             p += p1
             c += c1
             if m1>0:
@@ -419,9 +618,16 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
             #m += m0
         #r += sum([len(marking[pl]) for pl in ocpn.places-set(final_places)])
 
+        r3 = 0
+        debug_remaining2 = []
         for pl in ocpn.places-set(final_places):
             r += len(marking[pl])
+            r3 += len(marking[pl])
+            if len(marking[pl]) > 0:
+                debug_remaining2.append((pl,marking[pl]))
             marking[pl] = Multiset()
+        #print(f'compare the r: before {r2} after {r3}')
+        print(f'the remaining bindings are: {debug_remaining2}')
         '''for pl in ocpn.places-set(final_places):
             if len(marking[pl])>0:
                 r_places.add(pl.name)'''
@@ -430,11 +636,18 @@ def OCtokenbasedreplay2(ocel,ocpn,handle_silence="backward replay"):
             c += len(marking[pl])
             marking[pl] = Multiset()
     #print(f'the remaining places: {remaining_places}')                
-    print('pcmr:',p,c,m,r,p+m,c+r)
+    print('pcmrf:',p,c,m,r,f,p+m,c+r+f)
     if c == 0 or p == 0:
         raise ValueError('no consumed or produced tokens')
-    result = {'fitness':1/2*(1-m/c)+1/2*(1-r/p),'p':p,'c':c,'m':m,'r':r}
-    return result
+    #make the frozen map more readable
+    frozen_map_clean = {}
+    for key,value in frozen_map.items():
+        if not len(value) == 0:
+            frozen_map_clean[key] = value
+    result = {'fitness':1/2*(1-m/c)+1/2*(1-(r+f)/p),'p':p,'c':c,'m':m,'r':r,'f':f,'is_equation':p+m==r+c+f}
+    information = {'frozen map':frozen_map_clean,'BST time':BST_time,'shortest path time':shortest_path_time,\
+                   'token flooding time':token_flooding_time,'caching time':caching_time}
+    return result, information
 
 def shortest_path_backward_replay(ocpn,dg,marking,obj,parameter):
     #the preset already considered the object type
@@ -503,14 +716,17 @@ def shortest_path_backward_replay(ocpn,dg,marking,obj,parameter):
 
         if len(gamma_list) == 0 or len(lambda_list) == 0:
             interrupt = True
-    
+    #determine whether is the case to the final place
     is_final = len(preset) == 1 and preset[0].final
+
+    missing = {'missing places':[pl for pl in preset if not obj in marking[pl] and not is_final],\
+               'missing object':obj,'silent sequence':silent_sequence}
     for pl in preset:
         if not obj in marking[pl] and not is_final:
             m += 1
             marking[pl].add(obj)
     
-    return p,c,m,silent_sequence
+    return p,c,m,missing
 
 def which_missing(transition,object,marking):
     missing_places = []
@@ -800,6 +1016,7 @@ class BackwardGraph(object):
         #self.endnodes = set()
     class Node(object):
         def __init__(self,state,transition=None,label=None, end=False):
+            self.name = state.name
             self.state = state
             self.transition = transition
             self.label = transition.name if not transition is None else label
@@ -819,6 +1036,7 @@ class BackwardGraph(object):
             self.out = None
             self.path = []
             self.color = 'yellow'
+            self.end = False
     #above is children, inn is children
     def connect_components(self,above,below):
         above.out = below
@@ -839,6 +1057,32 @@ class BackwardGraph(object):
             above.path.insert(0,above.label)
         #print(f'After, below path:{below.path}, above path"{above.path}')
 
+    '''def copy(self):
+        return BackwardGraph(self.nodes,self.operators,self.root)'''
+    
+    def prune(self,element):
+        for n in element.inn:
+            self.prune(n)
+            if type(n) == self.Node:
+                self.nodes.remove(n)
+            elif type(n) == self.Operator:
+                self.operators.remove(n)
+
+    def prune_color(self,element):
+        if type(element) == self.Node:
+            for n in element.inn:
+                self.prune_color(n)
+                n.color = 'grey'
+        elif type(element) == self.Operator:
+            #this method will be called only when the yellow needed to be greyed            
+            for n in element.inn:
+                if n.color == 'yellow':
+                    self.prune_color(n)
+                    n.color = 'grey'
+
+        
+            
+
     @property
     def extension_nodes(self):
         return [n for n in self.nodes if n.end and n.color=='yellow']
@@ -851,14 +1095,15 @@ class BackwardGraph(object):
         return any([o.color=='red' for o in self.operators])
     
     def get_color(self):
-        node_color = [(n.label,n.color) for n in self.nodes]
+        node_color = [(n.name,n.color) for n in self.nodes]
         operator_color = [(o.label,o.color) for o in self.operators]
         return node_color+['before node, after operator']+operator_color
 
     def color_update(self):        
         no_update = False
+        #we only change the node with yellow!!! important for cached BST!
         while not no_update:
-            #print(f'the color is {self.get_color()}, root color: {self.root.color}')
+            print(f'the color is {self.get_color()}, root color: {self.root.color}')
             no_update = True
             #node_color = [n.color for n in self.nodes]
             #operator_color = [o.color for o in self.operators]
@@ -867,7 +1112,9 @@ class BackwardGraph(object):
             for o in self.operators:
                 #if not yellow, we are not allowed to change no_update!
                 if o.type == 'AND' and o.color == 'yellow':
+                    print('AND yellow')
                     if all([n.color == 'green' for n in o.inn]):
+                        print('all children green')
                         #o.out.color = 'green'
                         o.color = 'green'
                         no_update = False
@@ -875,10 +1122,11 @@ class BackwardGraph(object):
                         #o.out.color = 'red'
                         o.color = 'red'
                         no_update = False
-                        for pre in o.inn:
+                        '''for pre in o.inn:
                             if pre.color == 'yellow':
                                 #grey refers no consideration necessary
-                                pre.color = 'grey'
+                                pre.color = 'grey'''
+                        self.prune_color(o)
                 elif o.type == 'OR' and o.color == 'yellow':
                     if all([n.color == 'red' for n in o.inn]):
                         #o.out.color = 'red'
@@ -888,10 +1136,11 @@ class BackwardGraph(object):
                         #o.out.color = 'green'
                         o.color = 'green'
                         no_update = False
-                        for pre in o.inn:
+                        '''for pre in o.inn:
                             if pre.color == 'yellow':
                                 #grey refers no consideration necessary
-                                pre.color = 'grey'
+                                pre.color = 'grey'''
+                        self.prune_color(o)
             #the node color should also be updated
             for n in self.nodes:
                 if len(n.inn) > 1:
@@ -946,7 +1195,12 @@ class BackwardGraph(object):
                 #print(f'I have green but not end {ele.label}')
                 if len(ele.inn) > 1:
                     return ValueError('node has multiple child!!!')
+                print(f'the node state: {list(ele.inn)[0].label}\n\
+                      the node children: {len(list(ele.inn)[0].inn)}')
                 return self.get_path_above(list(ele.inn)[0])+[ele.transition]
+            #if the BST is cashed, the parent could be green but the children is red!!!
+            elif ele.color == 'red':
+                return []
         elif type(ele) == self.Operator:
             if ele.type == 'AND' and ele.color == 'green':
                 #print('the AND is green')
@@ -965,7 +1219,11 @@ class BackwardGraph(object):
                     if ele2.color == 'green':
                         or_path = self.get_path_above(ele2)
                         break
+                    print(f'the OR children is {[n.state.name for n in ele.inn]}')
                 return or_path
+            #if the BST is cashed, the parent could be green but the children is red!!!
+            if ele.color == 'red':
+                return []
     
     def get_missing_node(self):
         missing_place = []
@@ -1003,9 +1261,25 @@ def execute_silent_sequence(silent_sequence,marking,obj):
     p,c = 0,0
     #we added None to avoid duplication for node label
     silent_sequence = [ele for ele in silent_sequence if not ele == None]   
-    for silence in silent_sequence:
+    for silence in silent_sequence:        
         preset = [arc.source for arc in silence.in_arcs if obj[0]==arc.source.object_type]
         postset = [arc.target for arc in silence.out_arcs if obj[0]==arc.target.object_type]
+        '''if 'application6' in [pl.name for pl in preset]:
+            raise ValueError(f'Hi, the silent sequence is {silent_sequence}, and the current silence\n\
+                             is {silence} for Application_287203067 in application6')'''
+        place_dict = {}
+        for pl in marking.keys():
+            place_dict[pl.name] = pl
+        #the below part is used for debugging
+        '''t0 = obj in marking[place_dict['application5']]
+        t1 = obj in marking[place_dict['application14']]
+        t2 = obj in marking[place_dict['application2']]
+        t3 = obj in marking[place_dict['application9']]
+        if silence.name == 'applicationinit_loop_12' or silence.name == 'applicationskip_14':            
+            print(f'silence: {silence.name}; is object {obj} in a5: {t0}; the object in a14: {t1}')
+        elif silence.name == 'applicationskip_8' or silence.name == 'applicationtauSplit_4':
+            print(f'silence: {silence.name}; is object {obj} in a2: {t2}; the object in a9: {t3}')'''
+
         if all([obj in marking[pl] for pl in preset]):
             c += len(preset)
             for pl in preset:
@@ -1021,6 +1295,7 @@ def execute_silent_sequence(silent_sequence,marking,obj):
                     the preset is: {preset}, the object is {obj}\
                         the marking of the preset is {[marking[pl] for pl in preset]}')
             return None
+        
     return p,c
 
 '''def build_forward_graph(abstract,node):
@@ -1167,8 +1442,9 @@ def backward_replay3(element,marking,object):
         '''if execute_silent_sequence(silent_sequence,marking,object) == None:
             print(f'the BST node and operator: {abstract.get_BST_label()}')'''
         #print(f'get BST info: {abstract.get_BST_label()}')
+        #print(f'BST silent sequence: {silent_sequence}, with object {object}')
         p,c = execute_silent_sequence(silent_sequence,marking,object)
-        print(f'BST silent sequence: {silent_sequence}')
+        
 
     
 
@@ -1183,6 +1459,9 @@ def backward_replay3(element,marking,object):
         '''if element.name == 'Pay Order' or element.name == 'Pick Item':
             print(f'---------Pay Order or Pick Item; the BST info: {abstract.get_BST_label()}, then tran: {element.name}')
     '''
+    missing = {'missing places':missing,\
+               'missing object':object,'silent sequence':silent_sequence}
+    
     return p,c,m,missing
 
     #abstract.nodes.add(node)     
@@ -1191,8 +1470,458 @@ def sort_process_execution(process_execution,event_dict):
     event_list = [event_dict[eid] for eid in process_execution]
     sorted_event_list = sorted([event for event in event_list], key=lambda ele: ele.time)
     return sorted_event_list
+
+#modify the general marking and compute the frozen marking
+def solve_token_flooding(ocpn,marking,frozen_map,object,method='S_component',parameter=None):
+    f=0
+    pl = parameter['current_place']
+    
+    if method == 'boundness':       
+        if object in marking[pl]:
+            #the removed pl is superfluous
+            marking[pl].remove(object)
+            frozen_map[pl].add((pl,object[1]))
+            f += 1
+    elif method == 'S_component':
+        #S_component = calculate_S_component(ocpn)
+        S_component = parameter['S_component']
+        for circle in S_component:
+            #the node is labeled by the place
+            if pl in circle:
+                for other_pl in set(circle)-{pl}:
+                    if object in marking[other_pl]:
+                        marking[other_pl].remove(object)
+                        frozen_map[other_pl].add((pl,object[1]))
+                        #print(f'the pl is {pl}')
+                        f += 1
+    return f
+
+def calculate_S_component(ocpn):
+    S_component = []
+    #first find out the place loop!
+    #eliminate all the not the biggest loop!
+    #decompose them by splitting the AND
+    G = nx.DiGraph()
+    G.add_nodes_from(ocpn.places)
+    #reachable_dict = {}
+    connection = set()
+    parallel_places = []
+
+    for tr in ocpn.transitions:
+        for ot in ocpn.object_types:
+            preset = [arc.source for arc in tr.in_arcs if arc.source.object_type==ot]
+            postset = [arc.target for arc in tr.out_arcs if arc.target.object_type==ot]
+            if len(preset)>1:
+                parallel_places.append(preset)
+            if len(postset)>1:
+                parallel_places.append(postset)
+    print(f'this is the parallel places: {parallel_places}')
+    for tr in ocpn.transitions:
+        for arc1 in tr.in_arcs:
+            for arc2 in tr.out_arcs:
+                if arc1.source.object_type == arc2.target.object_type:
+                    connection.add((arc1.source,arc2.target))
+                '''if not arc1.source in reachable_dict.keys():
+                    reachable_dict[arc1.source] = set()
+                reachable_dict[arc1.source].add(arc2.target)'''
+    G.add_edges_from(connection)
+    print(f'the network graph is: {G.nodes()}\n edge:{G.edges()}')
+    try:
+        loops = list(nx.simple_cycles(G))
+    except:
+        loops = []
+    unfinish = True
+    while unfinish:
+        unfinish = False
+        #loops_copy = copy.deepcopy(loops)
+        for l1 in loops:
+            for l2 in loops:
+                if len(set(l1)|set(l2))>0 and not l1==l2\
+                    and l1[0].object_type == l2[0].object_type:
+                    merged_circle = set(l1)|set(l2)
+                    if all([len(set(parallel)&merged_circle)<2 \
+                            for parallel in parallel_places]):
+                        loops.remove(l1)
+                        loops.remove(l2)
+                        loops.append(list(merged_circle ))
+                        unfinish = True
+                        #we have to break because the iterated list is already modified!!!
+                        break
+                        #print(f'the {l1} and {l2} are removed; the {list(merged_circle )} is added')
+            if unfinish:
+                break
+
+
+    #return [set(loop) for loop in loops]
+    return loops
+
+    #update the reachable dict
+    '''is_update = True
+    while is_update:
+        is_update = False
+        for pl1 in reachable_dict.keys():
+            pl1_reachable_copy = copy.deepcopy(reachable_dict[pl1])
+            for pl2 in reachable_dict[pl1]:
+                reachable_dict[pl1] |= reachable_dict[pl2]
+            if not pl1_reachable_copy == reachable_dict[pl1]:
+                is_update = True
+    #determine loop
+    self_reachable = []
+    for pl in reachable_dict.keys():
+        if pl in reachable_dict[pl]:
+            self_reachable'''
+
+class TransitionSystem(object):
+    def __init__(self):
+        self.nodes = set()
+        self.start = None
+    class Node(object):
+        def __init__(self,name,label,state=None,next=set()):
+            self.name = 'node_'+str(name)
+            self.before = set()
+            self.next = next
+            self.state = state
+            #the in transition name
+            self.label = label
+            self.escaping_edge = set()
+            #the in transition color
+            self.reflected_edge = set()
+            self.allowed_edge = set()
+            self.preceding_nodes = set()
+            self.weight = 1
+            self.edge_weight = {}
+    def connect_nodes(self,front,behind):
+        front.next.add(behind)
+        behind.state = front.state.append(behind.label)
+    def add(self,node):
+        is_added = False
+        if len(node.state) == 0:
+            self.start = node
+            self.nodes.add(node)
+            #self.preceding_nodes = set()
+            is_added = True
+        elif len(node.state)==1:
+            #self.start.next.add(node)
+            #node.preceding_nodes.add(self.start)
+            self.nodes.add(node)            
+            is_added = True
+        else:
+            #NO! we cannot update the weight once adding a new activity
+            '''for n in self.nodes:
+                if node.state[:-1] == n.state:
+                    n.next.add(node)
+                    #node.preceding_nodes = n.preceding_nodes | {n}'''
+            self.nodes.add(node)
+            is_added = True
+            #break
+            '''for n in node.preceding_nodes:
+                n.weight += 1'''
+        if not is_added:
+            raise ValueError('there is no corresponding prefix!')
+    def find_node(self,state):
+        for n in self.nodes:
+            if n.state == state:
+                return n
+        raise ValueError('the node with the given activity sequence doesnt exist')
+    def get_node_information(self):
+        outputpath ='./test/output/OCEEdebug.txt'
+        with open(outputpath, 'w') as file:
+            file.write(f'-----start-----\n\
+                       the number of nodes(states): {len(self.nodes)}\n\
+                        the node states are: {[n.state for n in self.nodes]}')
+        for n in self.nodes:
+            with open(outputpath, 'a') as file:
+                file.write(f'the node name is:{n.name} label is: {n.label};\n\
+                           the edge weight is: {n.edge_weight}\n\
+                    the weight is {n.weight}; the allowed edges: {n.allowed_edge}\n\
+                        the reflected edges: {n.reflected_edge}\n\
+                            the prefix length is: {len(n.state)}')
+    
+    def get_context(self,subprocess):
+        #get all the objects
+        object_set = set()
+        for event in subprocess:
+            object_set |= set(event.omap)
+        context = []
+        for obj in object_set:
+            obj_process = []
+            for event in subprocess:
+                if obj in event.omap:
+                    obj_process.append(event.act)
+            #use to avoid duplication
+            # the context cannot be set as a set because the list element is not hashable
+            if not obj_process in context:
+                context.append(obj_process)
+        return context
+        #extract according to the objects
+
+def OC_escaping_edge(ocel,ocpn,method='BST',state='context',cache=False):
+    unsorted_process_execution = ocel.process_executions
+    event_dict = ocel.obj.raw.events
+    object_dict = ocel.obj.raw.objects
+    sorted_process_execution = [sort_process_execution(unsorted_process,event_dict)\
+                                for unsorted_process in unsorted_process_execution]
+    #sorted_process_execution = sorted_process_execution[30:]
+    BST_time = 0
+    
+    if cache:
+        time0 = time.time()
+        BST = caching(ocpn,'BST')
+        time1 = time.time()
+        BST_caching_time = time1 - time0
+    else:
+        BST = None
+        BST_caching_time = 0
+    time0 = time.time()
+    TS = abstract_transition_system(sorted_process_execution,state='context')
+    print(f'the number of nodes in TS: {len(TS.nodes)}')
+    time1 = time.time()
+    TS_time = time1-time0
+    print(f'the TS is built using {time1-time0}!')
+    '''TSoutputpath="/Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/sample_logs/OCPN/order_process_TS.pkl"
+    with open(TSoutputpath, "wb") as file:
+        pickle.dump(TS , file)
+    raise ValueError('debug stop')'''
+    #the information for the replay
+    marking: Dict[objocpa.Place,Multiset]
+    marking = {}
+    initial_place = {}
+    for ot in ocpn.object_types:
+        initial_place[ot] = set()
+    for pl in ocpn.places:
+        #print('line263',type(pl))
+        marking[pl] = Multiset()
+        if pl.initial:
+            initial_place[pl.object_type].add(pl)
+    place_dict = {}
+    transition_dict = {}
+    for pl in ocpn.places:
+        place_dict[pl.name]=pl
+    for tr in ocpn.transitions:
+        transition_dict[tr.name]=tr
+    non_silence = [tr for tr in ocpn.transitions if not tr.silent]
+    object_type = ocpn.object_types
+    to_be_enable = {}
+    for tr in non_silence:
+        preset = [arc.source for arc in tr.in_arcs]               
+        for ot in object_type:
+            to_be_enable[(tr,ot)] = [pl for pl in preset if pl.object_type==ot]
+
+    #process_execution_object = ocel.process_execution_objects[30:]
+    process_execution_object = ocel.process_execution_objects
+    time_finding_enabled_transitions = 0
+    for i,process in enumerate(sorted_process_execution):
+        #print(f'now start the process {i} of {len(sorted_process_execution)}')
+        #initialize the object for replay
+        #Please first clear the marking up! ohterwise 1. affect the enabling transitionn
+        # 2. the iteration of the marking gets toooooo long! very worse computation time!!!
+        for pl in marking.keys():
+            marking[pl] = Multiset()
+        #If you sliced the sorted_process_execution, the process_execution_object should also be sliced
+        for obj in process_execution_object[i]:
+            if len(initial_place[obj[0]]) > 1:
+                raise ValueError('the start place is not unique!')
+            for start_place in initial_place[obj[0]]:
+                #print('type',type(obj[1]))
+                marking[start_place].add(obj)
+
+        activity_sequence = []
+        j=1
+        for i,event in enumerate(process):
+            #print(f'now start the event {j} of {len(process)}')
+            j+=1
             
+            obj_list = [(object_dict[object_id].type,object_id) for object_id in event.omap]
+            '''if event.act == 'Pick Item':
+                print(f'Pick item has {len(obj_list)} object')'''
+            if state == 'context':
+                context = TS.get_context(process[:i+1])
+                curr_node = TS.find_node(context)
+            elif state == 'prefix':
+                activity_sequence.append(event.act)
+                curr_node = TS.find_node(activity_sequence)
                 
+
+            if event.act not in transition_dict.keys():
+                #this should be counted as log only
+                print(f'{event.act} is not in the model')
+                #in this case, the reflected edge is 'str' type
+                curr_node.reflected_edge.add('event_only:'+event.act)
+                continue
+            else:
+                curr_tr = transition_dict[event.act]
+                curr_node.reflected_edge.add(curr_tr)
+
+            #the TS node should only modified by adding edges!   
+            parameter = {'object_list':obj_list,'transition_condition':to_be_enable,\
+                         'current_activity':curr_tr.name,'place_dict':place_dict,\
+                            'method':method,'caching':cache,'BST':BST,'BST_time':BST_time}
+            time0 = time.time()
+            allowed_edge = find_enabled_transitions(ocpn,marking,parameter=parameter)
+            #BST_time = parameter['BST_time']
+            curr_node.allowed_edge |= allowed_edge
+            time1 = time.time()
+            time_finding_enabled_transitions += time1-time0
+            if state == 'context':
+                for edge in allowed_edge:
+                    if edge in curr_node.edge_weight.keys():
+                        curr_node.edge_weight[edge]+=1
+                    else:
+                        curr_node.edge_weight[edge]=1       
+            
             
 
+            #we just modify the marking by executing the silent sequence.
+            if method == 'BST':
+                for obj in obj_list:
+                    backward_replay3(curr_tr,marking,obj)                   
+            preset = [arc.source for arc in curr_tr.in_arcs]
+            postset = [arc.target for arc in curr_tr.out_arcs]
+            #no! please only remove the object involved in event
+            for pl in preset:
+                marking[pl] -= set(obj_list)
+            for pl in postset:
+                obj_set = {obj for obj in obj_list if obj[0]==pl.object_type}
+                marking[pl] += obj_set
 
+            
+    #count the precision
+    allowed_task = 0
+    reflected_task = 0
+    if state == 'context':
+        for n in TS.nodes:
+            allowed_task += sum([n.edge_weight[e] for e in n.allowed_edge])
+            reflected_task += sum([n.edge_weight[e] for e in n.allowed_edge & n.reflected_edge])
+            n.escaping_edge = n.allowed_edge - n.reflected_edge
+    elif state == 'prefix':
+        for n in TS.nodes:
+            allowed_task += len(n.allowed_edge)*n.weight
+            reflected_task += len(n.allowed_edge & n.reflected_edge)*n.weight
+            n.escaping_edge = n.allowed_edge - n.reflected_edge
+    if allowed_task == 0:
+        precision = None
+        raise ValueError('there is no allowed task!')
+    else:
+        precision = reflected_task/allowed_task
+    print(f'the time of finding enabled transitions: {time_finding_enabled_transitions}\
+          \n the number of reflected tasks: {reflected_task}; the number of allowed_task: {allowed_task}')
+    #TS.get_node_information()
+    information = {'time finding enable transition':time_finding_enabled_transitions,\
+                   'number of reflected tasks':reflected_task,\
+                    'number of allowed tasks':allowed_task,\
+                        'BST caching time':BST_caching_time,\
+                            'TS building time':TS_time,\
+                                'number of state':len(TS.nodes)}
+
+    return precision, information
+
+
+def find_enabled_transitions(ocpn,marking,parameter=None):
+    
+    #shortest_path_backward_replay(ocpn,dg_copy,marking,obj,parameter)
+    non_silence = [tr for tr in ocpn.transitions if not tr.silent]
+    object_type = ocpn.object_types
+    obj_list = parameter['object_list']
+    enabled_transitions = set()
+    curr_act = parameter['current_activity']
+    place_dict = parameter['place_dict']
+    BST_time = parameter['BST_time']
+    
+    #(tr,ot)
+    #to_be_enable = parameter['transition_condition']
+    #print(f'to be enable is {to_be_enable}')
+    '''for tr in non_silence:
+        preset = [arc.source for arc in tr.in_arcs]
+        
+        to_be_enable = {}
+        for ot in object_type:
+            to_be_enable[ot] = [pl for pl in preset if pl.object_type==ot]'''
+    
+    if parameter['method'] == 'BST':
+        #obj_dict = {key:list(value) for key,value in groupby(obj_list,key=lambda x:x[0])}
+        #for ot,ot_obj in obj_dict.items():
+        
+        #for obj in obj_list:
+        
+        #the tr candidates need to be further awared!!!
+        tr_candidate = [tr for tr in non_silence if any([arc.source.object_type==obj[0] for obj in obj_list for arc in tr.in_arcs])]
+        print(f'the obj_type: {set([obj[0] for obj in obj_list])}; the related transitions: \n\
+              {tr_candidate}')
+        for tr in tr_candidate:
+            is_executable = True
+            for obj in obj_list:
+               
+                #for obj in ot_obj:
+                marking_copy = {}
+                for key,value in marking.items():
+                    marking_copy[key] = copy.deepcopy(value)
+
+                if parameter['caching']:
+                    BST = parameter['BST']
+                    time0 = time.time()
+                    cached_BST = BST[(tr,obj[0])]
+                    print(f'the current tr and obj are: {tr.name} and {obj[1]}')
+                    _,_,m,missing = verify_cashed_BST(marking_copy,obj,cached_BST,execution=False)
+                    time1 = time.time()
+                    BST_time += time1-time0
+                else:
+                    _,_,m,missing = backward_replay3(tr,marking_copy,obj)
+                #the previous problem is that you forget that backwardreplay3 corrected the missing token!!!
+                #be careful, here should be marking_copy!!! not marking!!!
+                #if not all([obj in marking_copy[pl] for pl in to_be_enable[(tr,obj[0])]]):
+                if m > 0:
+                    is_executable = False
+                    '''if curr_act == 'Load Cargo' and tr.name == 'Load Cargo':
+                        d1,d4 = marking[place_dict['delivery1']],marking[place_dict['delivery4']]
+                        print(f'why load cargo cannot be executed: {obj}, missing place:{missing}\n\
+                              , marking of delivery1 and delivery4: {d1,d4}')'''
+                    break
+                
+                
+            if is_executable:
+                enabled_transitions.add(tr)
+
+    if len(obj_list) == 1:
+        print(f'the object list only has one object: {obj_list[0][0]},\n the enabled transition is: {enabled_transitions}')
+    return enabled_transitions
+                
+
+def abstract_transition_system(sorted_process_execution,state='context'):   
+    TS = TransitionSystem()
+    node_state_list = []
+    nid = 0
+    start_node =  TS.Node(nid,label=None,state=[])
+    TS.add(start_node)
+    nid += 1
+    j = 1
+    for process in sorted_process_execution:
+        print(f'TS: the process is built {j} from {len(sorted_process_execution)}')
+        j += 1
+        activity_sequence = [event.act for event in process]
+        before_node = start_node
+        for i,event in enumerate(process):
+            print(f'the event is built {i} from {len(process)}')
+            if state == 'context':
+                node_state = TS.get_context(process[:i+1])
+            elif state == 'prefix':
+                node_state = activity_sequence[:i+1]
+            #the weight updating is very problematic!!!
+            if not node_state in node_state_list:
+                curr_node = TS.Node(nid,label=event.act,state=node_state)
+                nid += 1
+                #you should first check whether the node is already in !!!!
+
+                TS.add(curr_node)
+                node_state_list.append(node_state)
+            else:
+                '''print(f'the state is: {state}, the state list is: {state_list},\n\
+                      the node states are: {[n.state for n in TS.nodes]}')'''
+                curr_node = TS.find_node(node_state)
+                curr_node.weight += 1
+            before_node.next.add(curr_node)
+            curr_node.before.add(before_node)
+            before_node = curr_node
+    return TS
+
+
+    
