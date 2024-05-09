@@ -1,1 +1,0 @@
-the information of BPIfullocpn is {'number of places': 34, 'number of transitions': 41, 'number of silent transitions': 26, 'number of arcs': 98}

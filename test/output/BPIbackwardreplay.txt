@@ -1,6 +1,0 @@
---------New File-------------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/order_process.jsonocel-----
-                   ----Backward replay OCTBR-------            evaluation:{'fitness': 1.0, 'p': 6366, 'c': 6366, 'm': 0, 'r': 0}
-            time:1.1046741008758545
------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/FilteredBPI/BPI1to2executionprocess.jsonocel-----
-                   ----Backward replay OCTBR-------            evaluation:{'fitness': 0.9699749484232243, 'p': 117, 'c': 116, 'm': 3, 'r': 4}
-            time:0.027356863021850586

@@ -1,3 +1,0 @@
---------New File-------------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/FilteredBPI/BPI1to2executionprocess.jsonocel-----
-                   ----Shortest path replay OCTBR-------            evaluation:{'fitness': 0.9741379310344828, 'p': 116, 'c': 116, 'm': 3, 'r': 3}
-            time:0.28923797607421875

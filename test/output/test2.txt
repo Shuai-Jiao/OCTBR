@@ -1,0 +1,15 @@
+--------New File--------
+               flattened TBR
+-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI1to2executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.9699749484232243, 'p': 117, 'c': 116, 'r': 4, 'm': 3}
+            time:0.31526780128479004-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI2to3executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.9506917631917632, 'p': 112, 'c': 111, 'r': 6, 'm': 5}
+            time:0.28377294540405273-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI3to10executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.9405416439847578, 'p': 668, 'c': 660, 'r': 43, 'm': 36}
+            time:0.3987891674041748-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI10to50executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.934302011976706, 'p': 3129, 'c': 3094, 'r': 220, 'm': 189}
+            time:0.9623260498046875-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI50to150executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.9064009698942919, 'p': 6340, 'c': 6263, 'r': 624, 'm': 556}
+            time:2.141515016555786-----Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM_publish/test/../sample_logs/jsonocel/filtered_BPI/BPI150to550executionprocess.jsonocel-----
+            flattened fitness:{'fitness': 0.8866325547507617, 'p': 20882, 'c': 20589, 'r': 2477, 'm': 2226}
+            time:6.421172857284546

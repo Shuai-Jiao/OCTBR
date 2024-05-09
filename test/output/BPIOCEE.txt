@@ -1,8 +1,0 @@
---------New File-------------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/FilteredBPI/BPI1to2executionprocess.jsonocel-----
-                   ----BST OCEE-------            evaluation:0.27007299270072993
-            information:{'time finding enable transition': 1.4234745502471924, 'number of reflected tasks': 37, 'number of allowed tasks': 137, 'BST caching time': 0.018372058868408203, 'TS building time': 0.005421638488769531, 'number of state': 40}
-            time:1.5335447788238525
------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/FilteredBPI/BPI2to3executionprocess.jsonocel-----
-                   ----BST OCEE-------            evaluation:0.24836601307189543
-            information:{'time finding enable transition': 1.3807613849639893, 'number of reflected tasks': 38, 'number of allowed tasks': 153, 'BST caching time': 0.01635003089904785, 'TS building time': 0.007873058319091797, 'number of state': 42}
-            time:1.4623298645019531

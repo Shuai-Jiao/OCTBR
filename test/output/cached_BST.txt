@@ -1,3 +1,0 @@
------Start /Users/jiao.shuai.1998.12.01outlook.com/Documents/OCEM/test/../sample_logs/jsonocel/order_process.jsonocel-----
-                   ----Backward replay OCTBR-------            evaluation:({'fitness': 1.0, 'p': 6366, 'c': 6366, 'm': 0, 'r': 0, 'f': 0, 'is_equation': True}, {'frozen map': {}, 'BST time': 0, 'shortest path time': 9.540109872817993, 'token flooding time': 0, 'caching time': 0})
-            time:12.360728979110718
