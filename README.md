@@ -5,20 +5,20 @@ This repository provides a conformance checking method called object-centric tok
 The application environment is documented in requirements.txt, so please set up the necessary packages by 'pip install -r requirements.txt' before the usage.
 
 ## Usage
-Since the implementation of this method is based on OCPA, the input log or model should be in OCPA format. By recalling function token_based_replay(ocel,ocpn) imported from module object_centric_token_based_replay, the object-centric token-based replay method is carried out for evaluating the given object-centric event log and object-centric Petri net, where optional configurations are the approach of backward replay, resolution of token flooding, and the application of caching.
+Since the implementation of this method is based on OCPA, the input log or model should be in OCPA format. By recalling function token_based_replay(ocel,ocpn) imported from module object_centric_token_based_replay, the object-centric token-based replay method is carried out for evaluating the given object-centric event log and object-centric Petri net, where optional configurations are the approach of backward replay, resolution of token flooding, and the application of caching.<br>
 
-Then, a dictionary of evaluation results is returned, which contains the following information:
-'fitness': the fitness value of the evaluation, reflecting how the input model could reflect the input log.
-'p': the number of produced tokens during the replay.
-'c': the number of consumed tokens during the replay.
-'m': the number of missing tokens during the replay.
-'r': the number of remaining tokens during the replay.
-'f': the number of frozen tokens during the replay.
-'is_equal': check whether the replay satisfies the flow conservation.
-'explicit_missing_tokens': the explicit missing tokens during the replay.
-'implicit_missing_tokens': the implicit missing tokens during the replay.
-'remaining_tokens': the remaining missing tokens during the replay.
-'frozen_tokens': the frozen tokens during the replay.
-'unenabled_transitions': the transitions unenabled for the execution during the replay.
+Then, a dictionary of evaluation results is returned, which contains the following information:<br>
+'fitness': the fitness value of the evaluation, reflecting how the input model could reflect the input log.<br>
+'p': the number of produced tokens during the replay.<br>
+'c': the number of consumed tokens during the replay.<br>
+'m': the number of missing tokens during the replay.<br>
+'r': the number of remaining tokens during the replay.<br>
+'f': the number of frozen tokens during the replay.<br>
+'is_equal': check whether the replay satisfies the flow conservation.<br>
+'explicit_missing_tokens': the explicit missing tokens during the replay.<br>
+'implicit_missing_tokens': the implicit missing tokens during the replay.<br>
+'remaining_tokens': the remaining missing tokens during the replay.<br>
+'frozen_tokens': the frozen tokens during the replay.<br>
+'unenabled_transitions': the transitions unenabled for the execution during the replay.<br>
 Further information such as the problematic places or problematic objects for certain behaviors during the replay could be extracted from the returned values above.
 
